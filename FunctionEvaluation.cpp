@@ -10,11 +10,7 @@ using namespace seal;
 using namespace std;
 
 
-
-
-// for square root
 int main() {
-
 
     ////////////////////////////////////////////// PREPARE (R)LWE PARAMS ///////////////////////////////////////////////
     int ring_dim = poly_modulus_degree_glb;

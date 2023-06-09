@@ -202,7 +202,7 @@ void regevDec_Value(vector<int>& msg, const vector<regevCiphertext>& ct, const r
         }
         temp = (ct[i].b.ConvertToInt() + temp) % q;
 
-        temp = (temp + errorRange/2) % q; // 64 is error bound for 2^9
+        temp = (temp + errorRange/2) % q; // +-64 is error bound for 2^9
         msg[i] = temp / errorRange;
     }
     cout << endl;
