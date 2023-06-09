@@ -63,51 +63,51 @@ int main() {
     BatchEncoder batch_encoder(seal_context);
     Decryptor decryptor(seal_context, bfv_secret_key);
 
-    // GaloisKeys gal_keys, gal_keys_coeff;
-    // vector<int> rot_steps = {1};
-    // for (int i = 0; i < n;) {
-    //     rot_steps.push_back(i);
-    //     i += sqrt(n);
-    // }
-    // keygen.create_galois_keys(rot_steps, gal_keys);
-    
-    // vector<Modulus> coeff_modulus_last = coeff_modulus;
-    // coeff_modulus_last.erase(coeff_modulus_last.begin() + 2, coeff_modulus_last.end()-1);
-    // EncryptionParameters parms_last = bfv_params;
-    // parms_last.set_coeff_modulus(coeff_modulus_last);
-    // SEALContext seal_context_last = SEALContext(parms_last, true, sec_level_type::none);
-
-    // SecretKey sk_last;
-    // sk_last.data().resize(coeff_modulus_last.size() * ring_dim);
-    // sk_last.parms_id() = seal_context_last.key_parms_id();
-    // util::set_poly(bfv_secret_key.data().data(), ring_dim, coeff_modulus_last.size() - 1, sk_last.data().data());
-    // util::set_poly(
-    //     bfv_secret_key.data().data() + ring_dim * (coeff_modulus.size() - 1), ring_dim, 1,
-    //     sk_last.data().data() + ring_dim * (coeff_modulus_last.size() - 1));
-
-    // vector<int> rot_steps_coeff = {1};
-    // for (int i = 0; i < ring_dim/2;) {
-    //     if (find(rot_steps_coeff.begin(), rot_steps_coeff.end(), i) == rot_steps_coeff.end()) {
-    //         rot_steps_coeff.push_back(i);
-    //     }
-    //     i += sqrt(ring_dim/2);
-    // }
-    // KeyGenerator keygen_last(seal_context_last, sk_last);
-    // keygen_last.create_galois_keys(rot_steps_coeff, gal_keys_coeff);
-
-    GaloisKeys gal_keys;
+    GaloisKeys gal_keys, gal_keys_coeff;
     vector<int> rot_steps = {1};
     for (int i = 0; i < n;) {
         rot_steps.push_back(i);
         i += sqrt(n);
     }
+    keygen.create_galois_keys(rot_steps, gal_keys);
+    
+    vector<Modulus> coeff_modulus_last = coeff_modulus;
+    coeff_modulus_last.erase(coeff_modulus_last.begin() + 2, coeff_modulus_last.end()-1);
+    EncryptionParameters parms_last = bfv_params;
+    parms_last.set_coeff_modulus(coeff_modulus_last);
+    SEALContext seal_context_last = SEALContext(parms_last, true, sec_level_type::none);
+
+    SecretKey sk_last;
+    sk_last.data().resize(coeff_modulus_last.size() * ring_dim);
+    sk_last.parms_id() = seal_context_last.key_parms_id();
+    util::set_poly(bfv_secret_key.data().data(), ring_dim, coeff_modulus_last.size() - 1, sk_last.data().data());
+    util::set_poly(
+        bfv_secret_key.data().data() + ring_dim * (coeff_modulus.size() - 1), ring_dim, 1,
+        sk_last.data().data() + ring_dim * (coeff_modulus_last.size() - 1));
+
+    vector<int> rot_steps_coeff = {1};
     for (int i = 0; i < ring_dim/2;) {
-        if (find(rot_steps.begin(), rot_steps.end(), i) == rot_steps.end()) {
-            rot_steps.push_back(i);
+        if (find(rot_steps_coeff.begin(), rot_steps_coeff.end(), i) == rot_steps_coeff.end()) {
+            rot_steps_coeff.push_back(i);
         }
         i += sqrt(ring_dim/2);
     }
-    keygen.create_galois_keys(rot_steps, gal_keys);
+    KeyGenerator keygen_last(seal_context_last, sk_last);
+    keygen_last.create_galois_keys(rot_steps_coeff, gal_keys_coeff);
+
+    // GaloisKeys gal_keys;
+    // vector<int> rot_steps = {1};
+    // for (int i = 0; i < n;) {
+    //     rot_steps.push_back(i);
+    //     i += sqrt(n);
+    // }
+    // for (int i = 0; i < ring_dim/2;) {
+    //     if (find(rot_steps.begin(), rot_steps.end(), i) == rot_steps.end()) {
+    //         rot_steps.push_back(i);
+    //     }
+    //     i += sqrt(ring_dim/2);
+    // }
+    // keygen.create_galois_keys(rot_steps, gal_keys);
 
     MemoryPoolHandle my_pool = MemoryPoolHandle::New();
 
@@ -116,7 +116,7 @@ int main() {
 
     Ciphertext bfv_input;
     vector<uint64_t> input_v(poly_modulus_degree_glb);
-    for (int i = 0; i < poly_modulus_degree_glb; i++) {
+    for (int i = 0; i < (int) poly_modulus_degree_glb; i++) {
         input_v[i] = (i % 512) * 128;
     }
     Plaintext pl;
@@ -151,6 +151,10 @@ int main() {
     for (int i = 0; i < sq_sk; i++) {
         evaluator.rotate_rows(sk_encrypted, sq_sk * i, gal_keys, sk_sqrt_list[i]);
         evaluator.transform_to_ntt_inplace(sk_sqrt_list[i]);
+    }
+
+    for (int i = 0; i < 9; i++) {
+        evaluator.mod_switch_to_next_inplace(bfv_input);
     }
 
     Ciphertext bfv_input_copy(bfv_input);
