@@ -159,12 +159,13 @@ int main() {
 
     Ciphertext bfv_input_copy(bfv_input);
 
-    evaluator.rotate_columns_inplace(bfv_input_copy, gal_keys);
+    Evaluator eval_coeff(seal_context_last);
+    eval_coeff.rotate_columns_inplace(bfv_input_copy, gal_keys_coeff);
     for (int i = 0; i < sq_ct; i++) {
-        evaluator.rotate_rows(bfv_input, sq_ct * i, gal_keys, ct_sqrt_list[i]);
-        evaluator.transform_to_ntt_inplace(ct_sqrt_list[i]);
-        evaluator.rotate_rows(bfv_input_copy, sq_ct * i, gal_keys, ct_sqrt_list[i+sq_ct]);
-        evaluator.transform_to_ntt_inplace(ct_sqrt_list[i+sq_ct]);
+        eval_coeff.rotate_rows(bfv_input, sq_ct * i, gal_keys_coeff, ct_sqrt_list[i]);
+        eval_coeff.transform_to_ntt_inplace(ct_sqrt_list[i]);
+        eval_coeff.rotate_rows(bfv_input_copy, sq_ct * i, gal_keys_coeff, ct_sqrt_list[i+sq_ct]);
+        eval_coeff.transform_to_ntt_inplace(ct_sqrt_list[i+sq_ct]);
     }
 
     // vector<Plaintext> U_plain_list(ring_dim);
@@ -181,7 +182,7 @@ int main() {
 
 
     // Ciphertext coeff = slotToCoeff(seal_context, seal_context, ct_sqrt_list, U_plain_list, gal_keys, ring_dim);
-    Ciphertext coeff = slotToCoeff_WOPrepreocess(seal_context, seal_context, ct_sqrt_list, gal_keys, ring_dim, p);
+    Ciphertext coeff = slotToCoeff_WOPrepreocess(seal_context, seal_context_last, ct_sqrt_list, gal_keys_coeff, ring_dim, p);
 
     cout << "PLAINTEX OF SLOTTOCOEFF\n";
     decryptor.decrypt(coeff, pl);
