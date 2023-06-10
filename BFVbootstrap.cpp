@@ -184,13 +184,6 @@ int main() {
     // Ciphertext coeff = slotToCoeff(seal_context, seal_context, ct_sqrt_list, U_plain_list, gal_keys, ring_dim);
     Ciphertext coeff = slotToCoeff_WOPrepreocess(seal_context, seal_context_last, ct_sqrt_list, gal_keys_coeff, ring_dim, p);
 
-    cout << "PLAINTEX OF SLOTTOCOEFF\n";
-    decryptor.decrypt(coeff, pl);
-    for (int i = 0; i < ring_dim; i++) {
-      cout << pl[i] << ",";
-    }
-    cout << endl;
-
 
 
 
@@ -215,39 +208,29 @@ int main() {
 
     vector<int> msg(ring_dim);
     regevDec_Value(msg, lwe_ct_results, lwe_sk, lwe_params, bootstrap_param.errorRange);
-    cout << "Extraction result: " << msg << endl;
 
 
 
 
-    Ciphertext eval_result = evaluatePackedLWECiphertext(seal_context, lwe_ct_results, sk_sqrt_list, gal_keys, n, q_shift_constant, ring_dim, false);
 
-    Decryptor dec_lwe_key(seal_context, lwe_key);
-    dec_lwe_key.decrypt(eval_result, pl);
+
+    Ciphertext eval_result = evaluateExtractedBFVCiphertext(seal_context, lwe_ct_results, sk_sqrt_list, gal_keys, n, q_shift_constant, ring_dim, false);
+
+    decryptor.decrypt(eval_result, pl);
     batch_encoder.decode(pl, input_v);
     cout << "Result after eval with lwe key: ---------------------\n" << input_v << endl;
 
 
+    Ciphertext range_check_res;
+    Bootstrap_RangeCheck_PatersonStockmeyer(range_check_res, eval_result, rangeCheckIndices_bfv, p, ring_dim,
+                                            relin_keys, seal_context, bfv_secret_key, 0, false, false,
+                                            bootstrap_param.firstLevelDegree, bootstrap_param.secondLevelDegree);
 
 
 
-
-    while(seal_context.last_parms_id() != eval_result.parms_id()){
-        evaluator.mod_switch_to_next_inplace(eval_result);
-    }
-    Ciphertext copy_eval_result = eval_result;
-    auto ct_eval_in_iter = util::iter(copy_eval_result);
-    ct_eval_in_iter += eval_result.size() - 1;
-    cout << " -----> check key switch size: " << eval_result.coeff_modulus_size() << endl;
-    seal::util::set_zero_poly(ring_dim, eval_result.coeff_modulus_size(), eval_result.data(1)); // coeff_mod.size() should be the maximum for now
-
-    evaluator.switch_key_inplace(eval_result, *ct_eval_in_iter, static_cast<const KSwitchKeys &>(ksk_to_bfv), 0, my_pool);
-
-
-
-    decryptor.decrypt(coeff, pl);
+    decryptor.decrypt(eval_result, pl);
     batch_encoder.decode(pl, input_v);
-    cout << "Final result before rangecheck: ---------------------\n" << input_v << endl;
+    cout << "Result !!!!! ---------------------\n" << input_v << endl;
 
 
 }

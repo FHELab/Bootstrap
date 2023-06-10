@@ -175,6 +175,73 @@ inline void calUptoDegreeK_bigPrime(vector<Ciphertext>& output, const Ciphertext
 }
 
 
+
+Ciphertext evaluateExtractedBFVCiphertext(const SEALContext& seal_context, vector<regevCiphertext>& lwe_ct_list,
+                                          const vector<Ciphertext>& lwe_sk_sqrt_list, const GaloisKeys& gal_keys, const int lwe_sk_len,
+                                          const vector<uint64_t>& q_shift_constant, const int degree = poly_modulus_degree_glb,
+                                          const bool gateEval = false, const int q = 65537) {
+    Evaluator evaluator(seal_context);
+    BatchEncoder batch_encoder(seal_context);
+
+    // rotate sqrt(degree), and get sqrt(degree)'s lwe_sk_encrypted
+    int sq_rt = sqrt(lwe_sk_len);
+    vector<Ciphertext> result(sq_rt);
+        
+    for (int iter = 0; iter < sq_rt; iter++) {
+        for (int j = 0; j < (int) lwe_sk_sqrt_list.size(); j++) {
+            vector<uint64_t> lwe_ct_tmp(degree);
+            for (int i = 0; i < degree; i++) {
+                int ct_index = (i-iter) % (degree/2) < 0 ? (i-iter) % (degree/2) + degree/2 : (i-iter) % (degree/2);
+                ct_index = i < degree/2 ? ct_index : ct_index + degree/2;
+                int col_index = (i + j*sq_rt) % lwe_sk_len;
+                lwe_ct_tmp[i] = lwe_ct_list[ct_index].a[col_index].ConvertToInt();
+            }
+
+            Plaintext lwe_ct_pl;
+            batch_encoder.encode(lwe_ct_tmp, lwe_ct_pl);
+            evaluator.transform_to_ntt_inplace(lwe_ct_pl, lwe_sk_sqrt_list[j].parms_id());
+
+            if (j == 0) {
+                evaluator.multiply_plain(lwe_sk_sqrt_list[j], lwe_ct_pl, result[iter]);
+            } else {
+                Ciphertext temp;
+                evaluator.multiply_plain(lwe_sk_sqrt_list[j], lwe_ct_pl, temp);
+                evaluator.add_inplace(result[iter], temp);
+            }
+
+        }
+    }
+
+    for (int i = 0; i < (int) result.size(); i++) {
+        evaluator.transform_from_ntt_inplace(result[i]);
+    }
+
+    // sum up all sq_rt tmp results to the first one, each first rotate left one and add to the previous tmp result
+
+    for (int iter = sq_rt-1; iter > 0; iter--) {
+        evaluator.rotate_rows_inplace(result[iter], 1, gal_keys);
+        evaluator.add_inplace(result[iter-1], result[iter]);
+    }
+
+    vector<uint64_t> b_parts(degree);
+    for(int i = 0; i < degree; i++){
+        b_parts[i] = lwe_ct_list[i].b.ConvertToInt();
+    }
+
+    Plaintext lwe_b_pl;
+    batch_encoder.encode(b_parts, lwe_b_pl);
+    evaluator.add_plain_inplace(result[0], lwe_b_pl);
+
+    if (gateEval) {
+        Plaintext q_shift_pl;
+        batch_encoder.encode(q_shift_constant, q_shift_pl);
+        evaluator.add_plain_inplace(result[0], q_shift_pl);
+    }
+
+    return result[0];
+}
+
+
 // assume lwe_sk_len is a power of 2, and has a square root
 Ciphertext evaluatePackedLWECiphertext(const SEALContext& seal_context, vector<regevCiphertext>& lwe_ct_list,
                                        const vector<Ciphertext>& lwe_sk_sqrt_list, const GaloisKeys& gal_keys, const int lwe_sk_len,
@@ -868,7 +935,6 @@ vector<regevCiphertext> bootstrap(vector<regevCiphertext>& lwe_ct_list, Cipherte
     Ciphertext lwe_sk_column;
 
     time_start = chrono::high_resolution_clock::now();
-    auto context_data_ptr = seal_context.get_context_data(lwe_sk_encrypted.parms_id());
 
     evaluator.rotate_columns(lwe_sk_encrypted, gal_keys, lwe_sk_column);
     for (int i = 0; i < sq_sk; i++) {
