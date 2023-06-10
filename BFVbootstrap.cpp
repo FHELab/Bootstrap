@@ -179,6 +179,9 @@ int main() {
 
 
 
+    chrono::high_resolution_clock::time_point time_start, time_end;
+
+    time_start = chrono::high_resolution_clock::now();
 
 
     // Ciphertext coeff = slotToCoeff(seal_context, seal_context, ct_sqrt_list, U_plain_list, gal_keys, ring_dim);
@@ -206,8 +209,8 @@ int main() {
 
     vector<regevCiphertext> lwe_ct_results = extractRLWECiphertextToLWECiphertext(coeff);
 
-    vector<int> msg(ring_dim);
-    regevDec_Value(msg, lwe_ct_results, lwe_sk, lwe_params, bootstrap_param.errorRange);
+    // vector<int> msg(ring_dim);
+    // regevDec_Value(msg, lwe_ct_results, lwe_sk, lwe_params, bootstrap_param.errorRange);
 
 
 
@@ -226,11 +229,15 @@ int main() {
                                             relin_keys, seal_context, bfv_secret_key, 0, false, false,
                                             bootstrap_param.firstLevelDegree, bootstrap_param.secondLevelDegree);
 
+    time_end = chrono::high_resolution_clock::now();
+
 
 
     decryptor.decrypt(eval_result, pl);
     batch_encoder.decode(pl, input_v);
     cout << "Result !!!!! ---------------------\n" << input_v << endl;
+
+    cout << "TOTAL TIME: " << chrono::duration_cast<chrono::microseconds>(time_end - time_start).count() << endl;
 
 
 }
