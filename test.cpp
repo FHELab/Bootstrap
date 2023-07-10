@@ -10,17 +10,101 @@ using namespace seal;
 using namespace std;
 
 
+void RangeCheck_Polynomial(Ciphertext& output, const Ciphertext& input, const size_t& degree, const RelinKeys &relin_keys,
+                           const SEALContext& context, const vector<uint64_t>& rangeCheckIndices, const int firstLevel, const int secondLevel, 
+                           map<int, bool>& firstLevelMod, map<int, bool>& secondLevelMod) {
+    MemoryPoolHandle my_pool_larger = MemoryPoolHandle::New(true);
+    auto old_prof_larger = MemoryManager::SwitchProfile(std::make_unique<MMProfFixed>(std::move(my_pool_larger)));
+
+    Evaluator evaluator(context);
+    BatchEncoder batch_encoder(context);
+    vector<Ciphertext> kCTs(firstLevel), kToMCTs(secondLevel);
+
+    cout << "0: " << decryptor.invariant_noise_budget(input) << endl;
+
+    calUptoDegreeK_bigPrime(kCTs, input, firstLevel, relin_keys, context, firstLevelMod);
+    calUptoDegreeK_bigPrime(kToMCTs, kCTs[kCTs.size()-1], secondLevel, relin_keys, context, secondLevelMod);
+
+    for (int j = 0; j < (int) kCTs.size(); j++) {
+        evaluator.mod_switch_to_inplace(kCTs[j], kToMCTs[kToMCTs.size()-1].parms_id());
+    }
+    cout << "1: " << decryptor.invariant_noise_budget(kCTs[0]) << endl;
+    for (int j = 0; j < (int) kToMCTs.size(); j++) {
+        evaluator.mod_switch_to_next_inplace(kToMCTs[j]);
+    }
+    cout << "2: " << decryptor.invariant_noise_budget(kToMCTs[0]) << endl;
+    
+    Ciphertext temp_relin(context);
+
+    Plaintext plainInd;
+    plainInd.resize(degree);
+    plainInd.parms_id() = parms_id_zero;
+    for (int i = 0; i < (int) degree; i++) {
+        plainInd.data()[i] = 0;
+    }
+
+    for(int i = 0; i < secondLevel; i++) {
+        Ciphertext levelSum;
+        bool flag = false;
+        for(int j = 0; j < firstLevel; j++) {
+            if(rangeCheckIndices[i*secondLevel+j] != 0) {
+                plainInd.data()[0] = rangeCheckIndices[i*secondLevel+j];
+                if (!flag) {
+                    evaluator.multiply_plain(kCTs[j], plainInd, levelSum);
+                    flag = true;
+                } else {
+                    Ciphertext tmp;
+                    evaluator.multiply_plain(kCTs[j], plainInd, tmp);
+                    evaluator.add_inplace(levelSum, tmp);
+                }
+            }
+        }
+        evaluator.mod_switch_to_inplace(levelSum, kToMCTs[i].parms_id()); // mod down the plaintext multiplication noise
+        if(i == 0) {
+            output = levelSum;
+        } else if (i == 1) { // initialize for temp_relin, which is of ct size = 3
+            evaluator.multiply(levelSum, kToMCTs[i - 1], temp_relin);
+        } else {
+            evaluator.multiply_inplace(levelSum, kToMCTs[i - 1]);
+            evaluator.add_inplace(temp_relin, levelSum);
+        }
+    }
+
+    for(int i = 0; i < firstLevel; i++){
+        kCTs[i].release();
+    }
+    for(int i = 0; i < secondLevel; i++){
+        kToMCTs[i].release();
+    }
+
+    evaluator.relinearize_inplace(temp_relin, relin_keys);
+    evaluator.add_inplace(output, temp_relin);
+    temp_relin.release();
+
+    // vector<Ciphertext> f_kCT1(256), f_kCT2(256);
+
+    // map<int, bool> modDownIndices_2 = {{4, false}, {16, false}, {64, false}, {256, false}};
+    // map<int, bool> modDownIndices_3 = {{2, false}, {8, false}, {32, false}, {128, false}};
+
+    // calUptoDegreeK_bigPrime(f_kCT1, output, 256, relin_keys, context, modDownIndices_2);
+    // calUptoDegreeK_bigPrime(f_kCT2, f_kCT1[f_kCT1.size()-1], 256, relin_keys, context, modDownIndices_3);
+
+    // output = f_kCT2[f_kCT2.size()-1];
+
+    MemoryManager::SwitchProfile(std::move(old_prof_larger));
+}
+
 int main() {
 
 
     ////////////////////////////////////////////// PREPARE (R)LWE PARAMS ///////////////////////////////////////////////
     int ring_dim = 32768;
-    int n = 1024;
+    // int n = 1024;
     int p = prime_p;
 
     EncryptionParameters bfv_params(scheme_type::bfv);
     bfv_params.set_poly_modulus_degree(ring_dim);
-    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 55, 60, 28, 60, 60,
+    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 55, 30, 60, 60, 60, 60,
                                                           60, 60, 60, 60, 60,
                                                           50, 60 });
     bfv_params.set_coeff_modulus(coeff_modulus);
@@ -93,12 +177,36 @@ int main() {
     // vector<uint64_t> msg = {0, 21845, 32768, 43490, 10922, 30000, 50000, 20000};
     vector<uint64_t> msg(ring_dim);
     for (int i = 0; i< ring_dim; i++) {
-        msg[i] = (i % 4096) * 192;
+        // msg[i] = (i % 512) * 128;
+        msg[i] = 2;
     } //= {0, 21845, 32768, 43490, 10922, 30000, 50000, 20000};
     Plaintext pl;
     Ciphertext c;
     batch_encoder.encode(msg, pl);
     encryptor.encrypt(pl, c);
+
+
+
+    ///////////// TEST NEW RANGE CHECK /////////////////////
+    Ciphertext output;
+
+    map<int, bool> modDownIndices = {{4, false}, {16, false}};
+    
+    chrono::high_resolution_clock::time_point time_start, time_end;
+    time_start = chrono::high_resolution_clock::now();
+    RangeCheck_Polynomial(bfv_secret_key, output, c, poly_modulus_degree_glb, relin_keys, seal_context, fastRangeCheckIndices_63_twoShot, 16, 16, modDownIndices, modDownIndices);
+    time_end = chrono::high_resolution_clock::now();
+    cout << "time: " << chrono::duration_cast<chrono::microseconds>(time_end - time_start).count() << endl;
+    cout << decryptor.invariant_noise_budget(output) << " bits\n";
+
+    decryptor.decrypt(output, pl);
+    batch_encoder.decode(pl, msg);
+    cout << "MSG ----------------\n" << msg << endl;
+
+
+
+
+
 
     // Evaluator eval_gal(seal_context_last);
 
@@ -163,21 +271,21 @@ int main() {
     // TEST KEY SWITCH.....
 
 
-    auto coeff_modulus_switch = CoeffModulus::Create(ring_dim, { 28, 60 });
-    EncryptionParameters parms_switch = bfv_params;
-    parms_switch.set_coeff_modulus(coeff_modulus_switch);
-    SEALContext seal_context_switch = SEALContext(parms_switch, true, sec_level_type::none);
+    // auto coeff_modulus_switch = CoeffModulus::Create(ring_dim, { 28, 60 });
+    // EncryptionParameters parms_switch = bfv_params;
+    // parms_switch.set_coeff_modulus(coeff_modulus_switch);
+    // SEALContext seal_context_switch = SEALContext(parms_switch, true, sec_level_type::none);
 
 
-    KeyGenerator new_key_keygen(seal_context_switch, n);
-    SecretKey new_key = new_key_keygen.secret_key();
-    KSwitchKeys ksk;
-    seal::util::ConstPolyIter secret_key_before(bfv_secret_key.data().data(), ring_dim, coeff_modulus.size());
+    // KeyGenerator new_key_keygen(seal_context_switch, n);
+    // SecretKey new_key = new_key_keygen.secret_key();
+    // KSwitchKeys ksk;
+    // seal::util::ConstPolyIter secret_key_before(bfv_secret_key.data().data(), ring_dim, coeff_modulus.size());
 
-    new_key_keygen.generate_kswitch_keys(secret_key_before, 1, static_cast<KSwitchKeys &>(ksk), false);
-    ksk.parms_id() = seal_context.key_parms_id();
+    // new_key_keygen.generate_kswitch_keys(secret_key_before, 1, static_cast<KSwitchKeys &>(ksk), false);
+    // ksk.parms_id() = seal_context.key_parms_id();
 
-    Evaluator eval_switch(seal_context_switch);
+    // Evaluator eval_switch(seal_context_switch);
 
 
 
@@ -199,41 +307,41 @@ int main() {
     // }
     // cout << endl;
 
-    while(seal_context.last_parms_id() != c.parms_id()){
-        evaluator.mod_switch_to_next_inplace(c);
-    }
+    // while(seal_context.last_parms_id() != c.parms_id()){
+    //     evaluator.mod_switch_to_next_inplace(c);
+    // }
 
 
-    // 36028797017456641
-    // 1152921504606584833 / 32990138759887301
+    // // 36028797017456641
+    // // 1152921504606584833 / 32990138759887301
 
-    modDownToPrime(c, ring_dim, 1152921504581419009, 268369921);
+    // modDownToPrime(c, ring_dim, 1152921504581419009, 268369921);
+    // // for (int i = 0; i < ring_dim; i++) {
+    // //     cout << c.data(0)[i] << "  ";
+    // // }
+    // // cout << endl;
+
+    // Ciphertext copy_coeff = c;
+    // auto ct_in_iter = util::iter(copy_coeff);
+    // ct_in_iter += c.size() - 1;
+    // seal::util::set_zero_poly(ring_dim, 1, c.data(1)); // notice that the coeff_mod.size() is hardcoded to 1, thus this needs to be performed on the last level
+
+    // c.parms_id_ = seal_context_switch.last_parms_id();
+
+    // eval_switch.switch_key_inplace(c, *ct_in_iter, static_cast<const KSwitchKeys &>(ksk), 0, my_pool);
+
+
     // for (int i = 0; i < ring_dim; i++) {
     //     cout << c.data(0)[i] << "  ";
     // }
     // cout << endl;
-
-    Ciphertext copy_coeff = c;
-    auto ct_in_iter = util::iter(copy_coeff);
-    ct_in_iter += c.size() - 1;
-    seal::util::set_zero_poly(ring_dim, 1, c.data(1)); // notice that the coeff_mod.size() is hardcoded to 1, thus this needs to be performed on the last level
-
-    c.parms_id_ = seal_context_switch.last_parms_id();
-
-    eval_switch.switch_key_inplace(c, *ct_in_iter, static_cast<const KSwitchKeys &>(ksk), 0, my_pool);
-
-
-    for (int i = 0; i < ring_dim; i++) {
-        cout << c.data(0)[i] << "  ";
-    }
-    cout << endl;
     
-    Decryptor decryptor_new(seal_context_switch, new_key);
+    // Decryptor decryptor_new(seal_context_switch, new_key);
 
 
-    decryptor_new.decrypt(c, pl);
-    batch_encoder.decode(pl, msg);
-    cout << "New Decrypt: " << msg << endl;
+    // decryptor_new.decrypt(c, pl);
+    // batch_encoder.decode(pl, msg);
+    // cout << "New Decrypt: " << msg << endl;
 
 
 

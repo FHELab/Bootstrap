@@ -179,7 +179,7 @@ inline void calUptoDegreeK_bigPrime(vector<Ciphertext>& output, const Ciphertext
 Ciphertext evaluateExtractedBFVCiphertext(const SEALContext& seal_context, vector<regevCiphertext>& lwe_ct_list,
                                           const vector<Ciphertext>& lwe_sk_sqrt_list, const GaloisKeys& gal_keys, const int lwe_sk_len,
                                           const vector<uint64_t>& q_shift_constant, const int degree = poly_modulus_degree_glb,
-                                          const bool gateEval = false, const int q = 65537) {
+                                          const bool gateEval = false, const int q = prime_p) {
     Evaluator evaluator(seal_context);
     BatchEncoder batch_encoder(seal_context);
 
@@ -246,7 +246,7 @@ Ciphertext evaluateExtractedBFVCiphertext(const SEALContext& seal_context, vecto
 Ciphertext evaluatePackedLWECiphertext(const SEALContext& seal_context, vector<regevCiphertext>& lwe_ct_list,
                                        const vector<Ciphertext>& lwe_sk_sqrt_list, const GaloisKeys& gal_keys, const int lwe_sk_len,
                                        const vector<uint64_t>& q_shift_constant, const int degree = poly_modulus_degree_glb,
-                                       const bool gateEval = false, const int q = 65537) {
+                                       const bool gateEval = false, const int q = prime_p) {
     Evaluator evaluator(seal_context);
     BatchEncoder batch_encoder(seal_context);
 
@@ -309,7 +309,7 @@ Ciphertext evaluatePackedLWECiphertext(const SEALContext& seal_context, vector<r
     return result[0];
 }
 
-vector<vector<int>> generateMatrixU_transpose(int n, const int q = 65537) {
+vector<vector<int>> generateMatrixU_transpose(int n, const int q = prime_p) {
     vector<vector<int>> U(n,  vector<int>(n));
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
@@ -409,7 +409,7 @@ Ciphertext slotToCoeff(const SEALContext& context, const SEALContext& context_co
  * @return Ciphertext 
  */
 Ciphertext slotToCoeff_WOPrepreocess(const SEALContext& context, const SEALContext& context_coeff, vector<Ciphertext>& ct_sqrt_list, const GaloisKeys& gal_keys,
-                                     const int degree=poly_modulus_degree_glb, const int q=65537) {
+                                     const int degree=poly_modulus_degree_glb, const int q = prime_p) {
     Evaluator evaluator(context), eval_coeff(context_coeff);
     BatchEncoder batch_encoder(context);
 
@@ -425,6 +425,7 @@ Ciphertext slotToCoeff_WOPrepreocess(const SEALContext& context, const SEALConte
 
     vector<Ciphertext> result(sq_rt);
     for (int iter = 0; iter < sq_rt; iter++) {
+        cout << iter << endl;
         for (int j = 0; j < (int) ct_sqrt_list.size(); j++) {
 
             time_start = chrono::high_resolution_clock::now();
@@ -473,7 +474,78 @@ Ciphertext slotToCoeff_WOPrepreocess(const SEALContext& context, const SEALConte
     return result[0];
 }
 
+// bootstrap rangecheck function that calculate a poly given error bound, and no care for input outside domain
+void Bootstrap_FastRangeCheck_Random(SecretKey& bfv_secret_key, Ciphertext& output, const Ciphertext& input, const size_t& degree, const RelinKeys &relin_keys,
+                                     const SEALContext& context, const vector<uint64_t>& rangeCheckIndices, const int firstLevel, const int secondLevel,
+                                     map<int, bool>& firstLevelMod, map<int, bool>& secondLevelMod) {
+    MemoryPoolHandle my_pool_larger = MemoryPoolHandle::New(true);
+    auto old_prof_larger = MemoryManager::SwitchProfile(std::make_unique<MMProfFixed>(std::move(my_pool_larger)));
 
+    Evaluator evaluator(context);
+    BatchEncoder batch_encoder(context);
+    Decryptor decryptor(context, bfv_secret_key);
+
+    vector<Ciphertext> kCTs(firstLevel), kToMCTs(secondLevel);
+
+    calUptoDegreeK_bigPrime(kCTs, input, firstLevel, relin_keys, context, firstLevelMod);
+    calUptoDegreeK_bigPrime(kToMCTs, kCTs[kCTs.size()-1], secondLevel, relin_keys, context, secondLevelMod);
+
+    for (int j = 0; j < (int) kCTs.size(); j++) {
+        evaluator.mod_switch_to_inplace(kCTs[j], kToMCTs[kToMCTs.size()-1].parms_id());
+    }
+    for (int j = 0; j < (int) kToMCTs.size(); j++) {
+        evaluator.mod_switch_to_next_inplace(kToMCTs[j]);
+    }
+
+    Ciphertext temp_relin(context);
+
+    Plaintext plainInd;
+    plainInd.resize(degree);
+    plainInd.parms_id() = parms_id_zero;
+    for (int i = 0; i < (int) degree; i++) {
+        plainInd.data()[i] = 0;
+    }
+
+    for(int i = 0; i < secondLevel; i++) {
+        Ciphertext levelSum;
+        bool flag = false;
+        for(int j = 0; j < firstLevel; j++) {
+            if(rangeCheckIndices[i*secondLevel+j] != 0) {
+                plainInd.data()[0] = rangeCheckIndices[i*secondLevel+j];
+                if (!flag) {
+                    evaluator.multiply_plain(kCTs[j], plainInd, levelSum);
+                    flag = true;
+                } else {
+                    Ciphertext tmp;
+                    evaluator.multiply_plain(kCTs[j], plainInd, tmp);
+                    evaluator.add_inplace(levelSum, tmp);
+                }
+            }
+        }
+        evaluator.mod_switch_to_inplace(levelSum, kToMCTs[i].parms_id()); // mod down the plaintext multiplication noise
+        if(i == 0) {
+            output = levelSum;
+        } else if (i == 1) { // initialize for temp_relin, which is of ct size = 3
+            evaluator.multiply(levelSum, kToMCTs[i - 1], temp_relin);
+        } else {
+            evaluator.multiply_inplace(levelSum, kToMCTs[i - 1]);
+            evaluator.add_inplace(temp_relin, levelSum);
+        }
+    }
+
+    for(int i = 0; i < firstLevel; i++){
+        kCTs[i].release();
+    }
+    for(int i = 0; i < secondLevel; i++){
+        kToMCTs[i].release();
+    }
+
+    evaluator.relinearize_inplace(temp_relin, relin_keys);
+    evaluator.add_inplace(output, temp_relin);
+    temp_relin.release();
+
+    MemoryManager::SwitchProfile(std::move(old_prof_larger));
+}
 
 
 void Bootstrap_RangeCheck_PatersonStockmeyer_bigPrime(Ciphertext& ciphertext, const Ciphertext& input, const vector<uint64_t>& rangeCheckIndices,
@@ -703,7 +775,7 @@ Ciphertext encryptLWEskUnderBFV(const SEALContext& context, const size_t& degree
 
 
 vector<regevCiphertext> extractRLWECiphertextToLWECiphertext(Ciphertext& rlwe_ct, const int ring_dim = poly_modulus_degree_glb,
-                                                             const int n = 1024, const int p = 65537, const uint64_t big_prime = 1152921504589938689) {
+                                                             const int n = 1024, const int p = prime_p, const uint64_t big_prime = 1152921504589938689) {
     vector<regevCiphertext> results(ring_dim);
 
     prng_seed_type seed;

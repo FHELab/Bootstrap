@@ -4,6 +4,7 @@
 #include "math/discreteuniformgenerator.h"
 #include "math/discretegaussiangenerator.h"
 #include "seal/seal.h"
+#include "global.h"
 #include <iostream>
 #include <random>
 
@@ -233,7 +234,7 @@ void regevDec_Mod3(vector<int>& msg, const vector<regevCiphertext>& ct, const re
     }
 }
 
-bool shouldNegate(const int i, const int dim = 32768) {
+bool shouldNegate(const int i, const int dim = poly_modulus_degree_glb) {
     return!((i < dim/6) || (i < 3*dim/6 && i >= 2*dim/6) || (i < 5*dim/6 && i >= 4*dim/6));
 }
 
