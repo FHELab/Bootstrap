@@ -21,8 +21,8 @@ int main() {
     EncryptionParameters bfv_params(scheme_type::bfv);
     bfv_params.set_poly_modulus_degree(ring_dim);
 
-    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 55, 28, 60, 60,
-                                                          60, 60, 
+    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 55, 28,
+                                                          60, 60, 60,
                                                           50, 60 });
     bfv_params.set_coeff_modulus(coeff_modulus);
     bfv_params.set_plain_modulus(p);
@@ -137,7 +137,7 @@ int main() {
         evaluator.transform_to_ntt_inplace(sk_sqrt_list[i]);
     }
 
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < 6; i++) {
         evaluator.mod_switch_to_next_inplace(bfv_input);
     }
     cout << "... prepared bfv input ciphertext nearly out of noise budget ...\n";
@@ -170,7 +170,7 @@ int main() {
     time_start = chrono::high_resolution_clock::now();
 
 
-    // Ciphertext coeff = slotToCoeff(seal_context, seal_context, ct_sqrt_list, U_plain_list, gal_keys, ring_dim);
+    // Ciphertext coeff = slotToCoeff(seal_context, seal_context_last, ct_sqrt_list, U_plain_list, gal_keys_coeff, ring_dim);
     Ciphertext coeff = slotToCoeff_WOPrepreocess(seal_context, seal_context_last, ct_sqrt_list, gal_keys_coeff, ring_dim, p);
 
     // time_end = chrono::high_resolution_clock::now();
