@@ -45,6 +45,6 @@ else()
     link_libraries( ${PALISADE_SHARED_LIBRARIES} )
 endif()
 
-add_executable( bootstrap BFVFunctionBootstrap.cpp )
+add_executable( bootstrap BFVFunctionBootstrapBigPrime.cpp )
 
 target_link_libraries(bootstrap SEAL::seal ntl m gmp)
