@@ -15,7 +15,7 @@ int main() {
     ////////////////////////////////////////////// PREPARE (R)LWE PARAMS ///////////////////////////////////////////////
     int ring_dim = poly_modulus_degree_glb;
     int n = 1024;
-    BootstrapParam bootstrap_param = BootstrapParam(prime_p, 128, 512, 16, 16);
+    BootstrapParam bootstrap_param = BootstrapParam(prime_p, 192, 4096, 256*3, 1024);
     int p = bootstrap_param.ciphertextSpacePrime;
 
     EncryptionParameters bfv_params(scheme_type::bfv);
@@ -216,7 +216,7 @@ int main() {
 
     Ciphertext range_check_res;
     map<int, bool> modDownIndices = {{4, false}, {16, false}};
-    Bootstrap_FastRangeCheck_Random(bfv_secret_key, range_check_res, eval_result, ring_dim, relin_keys, seal_context, fastRangeCheckIndices_63_bigPrime,
+    Bootstrap_FastRangeCheck_Condition(bfv_secret_key, range_check_res, eval_result, ring_dim, relin_keys, seal_context, fastRangeCheckIndices_63_bigPrime,
                                     bootstrap_param.firstLevelDegree, bootstrap_param.secondLevelDegree, modDownIndices, modDownIndices);
 
     cout << "final: " << decryptor.invariant_noise_budget(range_check_res) << endl;
