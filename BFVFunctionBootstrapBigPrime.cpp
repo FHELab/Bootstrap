@@ -17,6 +17,8 @@ int main() {
     int n = 1024;
     BootstrapParam bootstrap_param = BootstrapParam(prime_p, 192, 4096, 256*3, 1024);
     int p = bootstrap_param.ciphertextSpacePrime;
+    int sq_ct = 128, sq_rt = 256; // 32768 = 128*256, divide into 128 share, and each has 256 slots to calculate
+
 
     EncryptionParameters bfv_params(scheme_type::bfv);
     bfv_params.set_poly_modulus_degree(ring_dim);
@@ -69,11 +71,10 @@ int main() {
     keygen.create_galois_keys(rot_steps, gal_keys);
     
     vector<Modulus> coeff_modulus_last = coeff_modulus;
-    coeff_modulus_last.erase(coeff_modulus_last.begin() + 1, coeff_modulus_last.end()-2);
+    coeff_modulus_last.erase(coeff_modulus_last.begin() + 2, coeff_modulus_last.end()-1);
     EncryptionParameters parms_last = bfv_params;
     parms_last.set_coeff_modulus(coeff_modulus_last);
     SEALContext seal_context_last = SEALContext(parms_last, true, sec_level_type::none);
-
 
     SecretKey sk_last;
     sk_last.data().resize(coeff_modulus_last.size() * ring_dim);
@@ -88,7 +89,7 @@ int main() {
         if (find(rot_steps_coeff.begin(), rot_steps_coeff.end(), i) == rot_steps_coeff.end()) {
             rot_steps_coeff.push_back(i);
         }
-        i += sqrt(ring_dim/2);
+        i += sq_rt;
     }
     KeyGenerator keygen_last(seal_context_last, sk_last);
     keygen_last.create_galois_keys(rot_steps_coeff, gal_keys_coeff);
@@ -129,7 +130,7 @@ int main() {
     Evaluator evaluator(seal_context);
     vector<uint64_t> q_shift_constant(ring_dim, 0);
 
-    int sq_sk = sqrt(n), sq_ct = sqrt(ring_dim/2);
+    int sq_sk = sqrt(n);
     vector<Ciphertext> sk_sqrt_list(sq_sk), ct_sqrt_list(2*sq_ct);
 
     for (int i = 0; i < sq_sk; i++) {
@@ -146,36 +147,40 @@ int main() {
     Evaluator eval_coeff(seal_context_last);
     eval_coeff.rotate_columns_inplace(bfv_input, gal_keys_coeff);
     for (int i = 0; i < sq_ct; i++) {
-        eval_coeff.rotate_rows(bfv_input, sq_ct * i, gal_keys_coeff, ct_sqrt_list[i]);
+        eval_coeff.rotate_rows(bfv_input, sq_rt * i, gal_keys_coeff, ct_sqrt_list[i]);
         eval_coeff.transform_to_ntt_inplace(ct_sqrt_list[i]);
-        eval_coeff.rotate_rows(bfv_input_copy, sq_ct * i, gal_keys_coeff, ct_sqrt_list[i+sq_ct]);
+        eval_coeff.rotate_rows(bfv_input_copy, sq_rt * i, gal_keys_coeff, ct_sqrt_list[i+sq_ct]);
         eval_coeff.transform_to_ntt_inplace(ct_sqrt_list[i+sq_ct]);
     }
 
     cout << "... prepared rotated bfv input ciphertext ...\n";
 
     // vector<Plaintext> U_plain_list(ring_dim);
-    // for (int iter = 0; iter < sq_ct; iter++) {
+    // for (int iter = 0; iter < sq_rt; iter++) {
     //     for (int j = 0; j < (int) ct_sqrt_list.size(); j++) {
-    //         vector<uint64_t> U_tmp = readUtemp(j*sq_ct + iter);
+    //         vector<uint64_t> U_tmp = readUtemp(j*sq_rt + iter);
     //         batch_encoder.encode(U_tmp, U_plain_list[iter * ct_sqrt_list.size() + j]);
     //         evaluator.transform_to_ntt_inplace(U_plain_list[iter * ct_sqrt_list.size() + j], ct_sqrt_list[j].parms_id());
     //     }
     // }
 
 
-
     chrono::high_resolution_clock::time_point time_start, time_end;
-
     time_start = chrono::high_resolution_clock::now();
 
 
-    // Ciphertext coeff = slotToCoeff(seal_context, seal_context_last, ct_sqrt_list, U_plain_list, gal_keys_coeff, ring_dim);
-    Ciphertext coeff = slotToCoeff_WOPrepreocess(seal_context, seal_context_last, ct_sqrt_list, gal_keys_coeff, ring_dim, p);
+    // Ciphertext coeff = slotToCoeff(seal_context, seal_context_last, ct_sqrt_list, U_plain_list, gal_keys_coeff, sq_rt, ring_dim);
+    Ciphertext coeff = slotToCoeff_WOPrepreocess(seal_context, seal_context_last, ct_sqrt_list, gal_keys_coeff, sq_rt, ring_dim, p);
 
     // time_end = chrono::high_resolution_clock::now();
 
     cout << "slot noise: " << decryptor.invariant_noise_budget(coeff) << endl;
+
+    decryptor.decrypt(coeff, pl);
+    for (int i = 0; i < ring_dim; i++) {
+        cout << pl.data()[i] << " ";
+    }
+    cout << endl;
 
 
 
@@ -217,7 +222,7 @@ int main() {
     Ciphertext range_check_res;
     map<int, bool> modDownIndices = {{4, false}, {16, false}};
     Bootstrap_FastRangeCheck_Condition(bfv_secret_key, range_check_res, eval_result, ring_dim, relin_keys, seal_context, fastRangeCheckIndices_63_bigPrime,
-                                    bootstrap_param.firstLevelDegree, bootstrap_param.secondLevelDegree, modDownIndices, modDownIndices);
+                                       16, 16, modDownIndices, modDownIndices);
 
     cout << "final: " << decryptor.invariant_noise_budget(range_check_res) << endl;
 

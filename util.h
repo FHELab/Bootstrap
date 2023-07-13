@@ -363,10 +363,9 @@ vector<uint64_t> readUtemp(const int i, const int degree=poly_modulus_degree_glb
  * @return Ciphertext 
  */
 Ciphertext slotToCoeff(const SEALContext& context, const SEALContext& context_coeff, vector<Ciphertext>& ct_sqrt_list, vector<Plaintext>& U_plain_list,
-                       const GaloisKeys& gal_keys, const int degree=poly_modulus_degree_glb) {
+                       const GaloisKeys& gal_keys, const int sq_rt = 128, const int degree=poly_modulus_degree_glb) {
     Evaluator evaluator(context), eval_coeff(context_coeff);
     BatchEncoder batch_encoder(context);
-    int sq_rt = sqrt(degree/2);
 
     chrono::high_resolution_clock::time_point time_start, time_end;
     int total_mul = 0;
@@ -411,7 +410,7 @@ Ciphertext slotToCoeff(const SEALContext& context, const SEALContext& context_co
  * @return Ciphertext 
  */
 Ciphertext slotToCoeff_WOPrepreocess(const SEALContext& context, const SEALContext& context_coeff, vector<Ciphertext>& ct_sqrt_list, const GaloisKeys& gal_keys,
-                                     const int degree=poly_modulus_degree_glb, const int q = prime_p) {
+                                     const int sq_rt = 128, const int degree=poly_modulus_degree_glb, const int q = prime_p) {
     Evaluator evaluator(context), eval_coeff(context_coeff);
     BatchEncoder batch_encoder(context);
 
@@ -422,8 +421,6 @@ Ciphertext slotToCoeff_WOPrepreocess(const SEALContext& context, const SEALConte
     vector<vector<int>> U = generateMatrixU_transpose(degree, q);
     time_end = chrono::high_resolution_clock::now();
     total_U += chrono::duration_cast<chrono::microseconds>(time_end - time_start).count();
-    int sq_rt = sqrt(degree/2);
-
 
     vector<Ciphertext> result(sq_rt);
     for (int iter = 0; iter < sq_rt; iter++) {
@@ -1026,8 +1023,8 @@ vector<regevCiphertext> bootstrap_bigPrime(vector<regevCiphertext>& lwe_ct_list,
     total_preprocess += chrono::duration_cast<chrono::microseconds>(time_end - time_start).count();
 
     time_start = chrono::high_resolution_clock::now();
-    // Ciphertext coeff = slotToCoeff(seal_context, seal_context_last, ct_sqrt_list, U_plain_list, gal_keys_coeff, ring_dim);
-    Ciphertext coeff = slotToCoeff_WOPrepreocess(seal_context, seal_context_last, ct_sqrt_list, gal_keys_coeff, ring_dim, p);
+    // Ciphertext coeff = slotToCoeff(seal_context, seal_context_last, ct_sqrt_list, U_plain_list, gal_keys_coeff, 128, ring_dim);
+    Ciphertext coeff = slotToCoeff_WOPrepreocess(seal_context, seal_context_last, ct_sqrt_list, gal_keys_coeff, 128, ring_dim, p);
     time_end = chrono::high_resolution_clock::now();
     total_online += chrono::duration_cast<chrono::microseconds>(time_end - time_start).count();
     cout << "TOTAL TIME for slotToCoeff: " << total_online << endl;
@@ -1158,8 +1155,8 @@ vector<regevCiphertext> bootstrap(vector<regevCiphertext>& lwe_ct_list, Cipherte
     total_preprocess += chrono::duration_cast<chrono::microseconds>(time_end - time_start).count();
 
     time_start = chrono::high_resolution_clock::now();
-    // Ciphertext coeff = slotToCoeff(seal_context, seal_context_last, ct_sqrt_list, U_plain_list, gal_keys_coeff, ring_dim);
-    Ciphertext coeff = slotToCoeff_WOPrepreocess(seal_context, seal_context_last, ct_sqrt_list, gal_keys_coeff, ring_dim);
+    // Ciphertext coeff = slotToCoeff(seal_context, seal_context_last, ct_sqrt_list, U_plain_list, gal_keys_coeff, 128, ring_dim);
+    Ciphertext coeff = slotToCoeff_WOPrepreocess(seal_context, seal_context_last, ct_sqrt_list, gal_keys_coeff, 128, ring_dim);
     time_end = chrono::high_resolution_clock::now();
     total_online += chrono::duration_cast<chrono::microseconds>(time_end - time_start).count();
     cout << "TOTAL TIME for slotToCoeff: " << total_online << endl;
