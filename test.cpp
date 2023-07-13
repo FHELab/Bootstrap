@@ -119,7 +119,7 @@ int main() {
     int ring_dim = poly_modulus_degree_glb;
     int n = 1024;
     int p = prime_p;
-    int sq_ct = 128, sq_rt = 256; // 32768 = 128*256, divide into 128 share, and each has 256 slots to calculate
+    int sq_ct = 128, sq_rt = 128; // 32768 = 128*256, divide into 128 share, and each has 256 slots to calculate
 
 
     EncryptionParameters bfv_params(scheme_type::bfv);
@@ -244,7 +244,7 @@ int main() {
     batch_encoder.decode(pl, msg);
     cout << "Decrypted should be: " << msg << endl;
 
-    Ciphertext coeff = slotToCoeff(seal_context, seal_context_last, ct_sqrt_list, U_plain_list, gal_keys_coeff, sq_rt, ring_dim);
+    Ciphertext coeff = slotToCoeff_bigRingDim(seal_context, seal_context_last, ct_sqrt_list, U_plain_list, gal_keys_coeff, sq_rt, ring_dim);
     // Ciphertext coeff = slotToCoeff_WOPrepreocess_bigRingDim(seal_context, seal_context_last, ct_sqrt_list, gal_keys_coeff, sq_rt, ring_dim, p);
 
     cout << decryptor.invariant_noise_budget(coeff) << endl;
