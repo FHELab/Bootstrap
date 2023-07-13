@@ -119,7 +119,7 @@ int main() {
     int ring_dim = poly_modulus_degree_glb;
     int n = 1024;
     int p = prime_p;
-    int sq_ct = 128, sq_rt = 128; // 32768 = 128*256, divide into 128 share, and each has 256 slots to calculate
+    int sq_ct = 128, sq_rt = 256; // 32768 = 128*256, divide into 128 share, and each has 256 slots to calculate
 
 
     EncryptionParameters bfv_params(scheme_type::bfv);
@@ -174,7 +174,7 @@ int main() {
     sk_last.parms_id() = seal_context_last.key_parms_id();
     util::set_poly(bfv_secret_key.data().data(), ring_dim, coeff_modulus_last.size() - 1, sk_last.data().data());
     util::set_poly(
-        bfv_secret_key.data().data() + ring_dim * (coeff_modulus.size() - 1), ring_dim, coeff_modulus.size() - 1,
+        bfv_secret_key.data().data() + ring_dim * (coeff_modulus.size() - 1), ring_dim, 1,
         sk_last.data().data() + ring_dim * (coeff_modulus_last.size() - 1));
 
 
@@ -187,7 +187,7 @@ int main() {
         if (find(rot_steps_coeff.begin(), rot_steps_coeff.end(), i) == rot_steps_coeff.end()) {
             rot_steps_coeff.push_back(i);
         }
-        i += sq_ct;
+        i += sq_rt;
     }
     cout << "rot_steps_coeff: " << rot_steps_coeff << endl;
     KeyGenerator keygen_last(seal_context_last, sk_last);
@@ -197,7 +197,7 @@ int main() {
     // vector<uint64_t> msg = {0, 21845, 32768, 43490, 10922, 30000, 50000, 20000};
     vector<uint64_t> msg(ring_dim);
     for (int i = 0; i < ring_dim; i++) {
-        msg[i] = 1000;
+        msg[i] = (i % 4096) * 192;;
         // msg[i] = 2;
     } //= {0, 21845, 32768, 43490, 10922, 30000, 50000, 20000};
     Plaintext pl;
@@ -222,9 +222,9 @@ int main() {
     Evaluator eval_coeff(seal_context_last);
     eval_coeff.rotate_columns_inplace(c, gal_keys_coeff);
     for (int i = 0; i < sq_ct; i++) {
-        eval_coeff.rotate_rows(c, sq_ct * i, gal_keys_coeff, ct_sqrt_list[i]);
+        eval_coeff.rotate_rows(c, sq_rt * i, gal_keys_coeff, ct_sqrt_list[i]);
         eval_coeff.transform_to_ntt_inplace(ct_sqrt_list[i]);
-        eval_coeff.rotate_rows(bfv_input_copy, sq_ct * i, gal_keys_coeff, ct_sqrt_list[i+sq_ct]);
+        eval_coeff.rotate_rows(bfv_input_copy, sq_rt * i, gal_keys_coeff, ct_sqrt_list[i+sq_ct]);
         eval_coeff.transform_to_ntt_inplace(ct_sqrt_list[i+sq_ct]);
     }
 
