@@ -310,6 +310,7 @@ Ciphertext evaluatePackedLWECiphertext(const SEALContext& seal_context, vector<r
 }
 
 vector<vector<int>> generateMatrixU_transpose(int n, const int q = prime_p) {
+    cout << "Generating... " << n << endl;
     vector<vector<int>> U(n,  vector<int>(n));
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
@@ -322,6 +323,7 @@ vector<vector<int>> generateMatrixU_transpose(int n, const int q = prime_p) {
             }
         }
     }
+    cout << "Generation finished. " << endl;
     return U;
 }
 
