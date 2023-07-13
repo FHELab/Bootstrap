@@ -229,9 +229,9 @@ int main() {
     }
 
     vector<Plaintext> U_plain_list(ring_dim);
-    for (int iter = 0; iter < sq_ct; iter++) {
+    for (int iter = 0; iter < sq_rt; iter++) {
         for (int j = 0; j < (int) ct_sqrt_list.size(); j++) {
-            vector<uint64_t> U_tmp = readUtemp(j*sq_ct + iter);
+            vector<uint64_t> U_tmp = readUtemp(j*sq_rt + iter);
             batch_encoder.encode(U_tmp, U_plain_list[iter * ct_sqrt_list.size() + j]);
             evaluator.transform_to_ntt_inplace(U_plain_list[iter * ct_sqrt_list.size() + j], ct_sqrt_list[j].parms_id());
         }
