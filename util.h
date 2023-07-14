@@ -558,6 +558,9 @@ void Bootstrap_FastRangeCheck_Condition(SecretKey& bfv_secret_key, Ciphertext& o
     BatchEncoder batch_encoder(context);
     Decryptor decryptor(context, bfv_secret_key);
 
+    chrono::high_resolution_clock::time_point time_start, time_end;
+    time_start = chrono::high_resolution_clock::now();
+
     vector<Ciphertext> kCTs(firstLevel), kToMCTs(secondLevel);
 
     cout << "first: " << firstLevel << ", second: " << secondLevel << endl; 
@@ -619,6 +622,11 @@ void Bootstrap_FastRangeCheck_Condition(SecretKey& bfv_secret_key, Ciphertext& o
     evaluator.add_inplace(output, temp_relin);
     temp_relin.release();
 
+    time_end = chrono::high_resolution_clock::now();
+    cout << "   first evaluation half: " << chrono::duration_cast<chrono::microseconds>(time_end - time_start).count() << endl;
+
+    time_start = chrono::high_resolution_clock::now();
+
     map<int, bool> modDownIndices_firstLevel = {{2, false}, {8, false}, {32, false}, {128, false}, {512, false}};
     map<int, bool> modDownIndices_secondLevel = {{2, false}, {8, false}, {32, false}, {64, false}, {128, false}, {512, false}};
 
@@ -627,6 +635,9 @@ void Bootstrap_FastRangeCheck_Condition(SecretKey& bfv_secret_key, Ciphertext& o
     calUptoDegreeK_bigPrime(raise_kToMCTs, raise_kCTs[raise_kCTs.size()-1], 1024, relin_keys, context, modDownIndices_secondLevel);
 
     output = raise_kToMCTs[raise_kToMCTs.size()-1];
+
+    time_end = chrono::high_resolution_clock::now();
+    cout << "   second raise power half: " << chrono::duration_cast<chrono::microseconds>(time_end - time_start).count() << endl;
 
     MemoryManager::SwitchProfile(std::move(old_prof_larger));
 }

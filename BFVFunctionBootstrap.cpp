@@ -165,23 +165,26 @@ int main() {
 
 
 
-    chrono::high_resolution_clock::time_point time_start, time_end;
+    chrono::high_resolution_clock::time_point time_start, time_end, s, e;
 
     time_start = chrono::high_resolution_clock::now();
 
 
     // Ciphertext coeff = slotToCoeff(seal_context, seal_context_last, ct_sqrt_list, U_plain_list, gal_keys_coeff, ring_dim);
+    s = chrono::high_resolution_clock::now();
     Ciphertext coeff = slotToCoeff_WOPrepreocess(seal_context, seal_context_last, ct_sqrt_list, gal_keys_coeff, ring_dim, p);
+    e = chrono::high_resolution_clock::now();
+    cout << "slotToCoeff_WOPrepreocess: " << chrono::duration_cast<chrono::microseconds>(e - s).count() << endl;
 
     // time_end = chrono::high_resolution_clock::now();
 
-    cout << "slot noise: " << decryptor.invariant_noise_budget(coeff) << endl;
+    // cout << "slot noise: " << decryptor.invariant_noise_budget(coeff) << endl;
 
 
 
 
 
-
+    s = chrono::high_resolution_clock::now();
     while(seal_context.last_parms_id() != coeff.parms_id()){
         evaluator.mod_switch_to_next_inplace(coeff);
     }
@@ -193,11 +196,11 @@ int main() {
 
     evaluator.switch_key_inplace(coeff, *ct_in_iter, static_cast<const KSwitchKeys &>(ksk_to_lwe), 0, my_pool);
 
-
-
-
-
     vector<regevCiphertext> lwe_ct_results = extractRLWECiphertextToLWECiphertext(coeff);
+
+
+    e = chrono::high_resolution_clock::now();
+    cout << "keySwitch + extractRLWECiphertextToLWECiphertext: " << chrono::duration_cast<chrono::microseconds>(e - s).count() << endl;
 
     // vector<int> msg(ring_dim);
     // regevDec_Value(msg, lwe_ct_results, lwe_sk, lwe_params, bootstrap_param.errorRange);
@@ -206,18 +209,26 @@ int main() {
 
 
 
-
+    s = chrono::high_resolution_clock::now();
     Ciphertext eval_result = evaluateExtractedBFVCiphertext(seal_context, lwe_ct_results, sk_sqrt_list, gal_keys, n, q_shift_constant, ring_dim, false);
+    e = chrono::high_resolution_clock::now();
+    cout << "evaluateExtractedBFVCiphertext: " << chrono::duration_cast<chrono::microseconds>(e - s).count() << endl;
 
-    decryptor.decrypt(eval_result, pl);
-    batch_encoder.decode(pl, input_v);
-    cout << "Result after eval with lwe key: ---------------------\n" << input_v << endl;
+    // decryptor.decrypt(eval_result, pl);
+    // batch_encoder.decode(pl, input_v);
+    // cout << "Result after eval with lwe key: ---------------------\n" << input_v << endl;
 
+
+    s = chrono::high_resolution_clock::now();
 
     Ciphertext range_check_res;
     map<int, bool> modDownIndices = {{4, false}, {16, false}};
     Bootstrap_FastRangeCheck_Random(bfv_secret_key, range_check_res, eval_result, ring_dim, relin_keys, seal_context, fastRangeCheckIndices_63_twoShot,
                                     bootstrap_param.firstLevelDegree, bootstrap_param.secondLevelDegree, modDownIndices, modDownIndices);
+
+
+    e = chrono::high_resolution_clock::now();
+    cout << "Bootstrap_FastRangeCheck_Random: " << chrono::duration_cast<chrono::microseconds>(e - s).count() << endl;
 
     cout << "final: " << decryptor.invariant_noise_budget(range_check_res) << endl;
 
