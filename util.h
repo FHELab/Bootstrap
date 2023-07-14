@@ -560,6 +560,8 @@ void Bootstrap_FastRangeCheck_Condition(SecretKey& bfv_secret_key, Ciphertext& o
 
     vector<Ciphertext> kCTs(firstLevel), kToMCTs(secondLevel);
 
+    cout << "first: " << firstLevel << ", second: " << secondLevel << endl; 
+
     calUptoDegreeK_bigPrime(kCTs, input, firstLevel, relin_keys, context, firstLevelMod);
     calUptoDegreeK_bigPrime(kToMCTs, kCTs[kCTs.size()-1], secondLevel, relin_keys, context, secondLevelMod);
 
@@ -583,8 +585,8 @@ void Bootstrap_FastRangeCheck_Condition(SecretKey& bfv_secret_key, Ciphertext& o
         Ciphertext levelSum;
         bool flag = false;
         for(int j = 0; j < firstLevel; j++) {
-            if(rangeCheckIndices[i*secondLevel+j] != 0) {
-                plainInd.data()[0] = rangeCheckIndices[i*secondLevel+j];
+            if(rangeCheckIndices[i*firstLevel+j] != 0) {
+                plainInd.data()[0] = rangeCheckIndices[i*firstLevel+j];
                 if (!flag) {
                     evaluator.multiply_plain(kCTs[j], plainInd, levelSum);
                     flag = true;
@@ -621,8 +623,10 @@ void Bootstrap_FastRangeCheck_Condition(SecretKey& bfv_secret_key, Ciphertext& o
     map<int, bool> modDownIndices_secondLevel = {{2, false}, {8, false}, {32, false}, {64, false}, {128, false}, {512, false}};
 
     vector<Ciphertext> raise_kCTs(256*3), raise_kToMCTs(1024);
-    calUptoDegreeK_bigPrime(raise_kCTs, input, 256*3, relin_keys, context, modDownIndices_firstLevel);
+    calUptoDegreeK_bigPrime(raise_kCTs, output, 256*3, relin_keys, context, modDownIndices_firstLevel);
     calUptoDegreeK_bigPrime(raise_kToMCTs, raise_kCTs[raise_kCTs.size()-1], 1024, relin_keys, context, modDownIndices_secondLevel);
+
+    output = raise_kToMCTs[raise_kToMCTs.size()-1];
 
     MemoryManager::SwitchProfile(std::move(old_prof_larger));
 }
