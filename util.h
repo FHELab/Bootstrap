@@ -11,9 +11,14 @@ struct BootstrapParam {
     int firstLevelDegree; // used for CallToDegreeK in range check procedure
     int secondLevelDegree;
 
-    BootstrapParam(int ciphertextSpacePrime, int errorRange, int plaintextSpace, int firstLevelDegree, int secondLevelDegree)
+    int raisePower_firstLevel = 256;
+    int raisePower_secondLevel = 256;
+
+    BootstrapParam(int ciphertextSpacePrime, int errorRange, int plaintextSpace, int firstLevelDegree, int secondLevelDegree,
+                   int raisePower_firstLevel = 256, int raisePower_secondLevel = 256)
     : ciphertextSpacePrime(ciphertextSpacePrime), errorRange(errorRange), plaintextSpace(plaintextSpace),
-      firstLevelDegree(firstLevelDegree), secondLevelDegree(secondLevelDegree)
+      firstLevelDegree(firstLevelDegree), secondLevelDegree(secondLevelDegree), raisePower_firstLevel(raisePower_firstLevel),
+      raisePower_secondLevel(raisePower_secondLevel)
     {}
 };
 
@@ -549,8 +554,9 @@ void Bootstrap_FastRangeCheck_Random(SecretKey& bfv_secret_key, Ciphertext& outp
 
 // bootstrap rangecheck function that calculate a poly given error bound, condition mapping, raise random result to 1
 void Bootstrap_FastRangeCheck_Condition(SecretKey& bfv_secret_key, Ciphertext& output, const Ciphertext& input, const size_t& degree, const RelinKeys &relin_keys,
-                                        const SEALContext& context, const vector<uint64_t>& rangeCheckIndices, const int firstLevel, const int secondLevel,
-                                        map<int, bool>& firstLevelMod, map<int, bool>& secondLevelMod) {
+                                        const SEALContext& context, const vector<uint64_t>& rangeCheckIndices, const int eval_level1, const int eval_level2,
+                                        map<int, bool>& eval_mod1, map<int, bool>& eval_mod2, const int raise_level1, const int raise_level2,
+                                        map<int, bool>& raise_mod1, map<int, bool>& raise_mod2) {
     MemoryPoolHandle my_pool_larger = MemoryPoolHandle::New(true);
     auto old_prof_larger = MemoryManager::SwitchProfile(std::make_unique<MMProfFixed>(std::move(my_pool_larger)));
 
@@ -561,12 +567,12 @@ void Bootstrap_FastRangeCheck_Condition(SecretKey& bfv_secret_key, Ciphertext& o
     chrono::high_resolution_clock::time_point time_start, time_end;
     time_start = chrono::high_resolution_clock::now();
 
-    vector<Ciphertext> kCTs(firstLevel), kToMCTs(secondLevel);
+    vector<Ciphertext> kCTs(eval_level1), kToMCTs(eval_level2);
 
-    cout << "first: " << firstLevel << ", second: " << secondLevel << endl; 
+    cout << "first: " << eval_level1 << ", second: " << eval_level2 << endl; 
 
-    calUptoDegreeK_bigPrime(kCTs, input, firstLevel, relin_keys, context, firstLevelMod);
-    calUptoDegreeK_bigPrime(kToMCTs, kCTs[kCTs.size()-1], secondLevel, relin_keys, context, secondLevelMod);
+    calUptoDegreeK_bigPrime(kCTs, input, eval_level1, relin_keys, context, eval_mod1);
+    calUptoDegreeK_bigPrime(kToMCTs, kCTs[kCTs.size()-1], eval_level2, relin_keys, context, eval_mod2);
 
     for (int j = 0; j < (int) kCTs.size(); j++) {
         evaluator.mod_switch_to_inplace(kCTs[j], kToMCTs[kToMCTs.size()-1].parms_id());
@@ -584,12 +590,12 @@ void Bootstrap_FastRangeCheck_Condition(SecretKey& bfv_secret_key, Ciphertext& o
         plainInd.data()[i] = 0;
     }
 
-    for(int i = 0; i < secondLevel; i++) {
+    for(int i = 0; i < eval_level2; i++) {
         Ciphertext levelSum;
         bool flag = false;
-        for(int j = 0; j < firstLevel; j++) {
-            if(rangeCheckIndices[i*firstLevel+j] != 0) {
-                plainInd.data()[0] = rangeCheckIndices[i*firstLevel+j];
+        for(int j = 0; j < eval_level1; j++) {
+            if(rangeCheckIndices[i*eval_level1+j] != 0) {
+                plainInd.data()[0] = rangeCheckIndices[i*eval_level1+j];
                 if (!flag) {
                     evaluator.multiply_plain(kCTs[j], plainInd, levelSum);
                     flag = true;
@@ -611,10 +617,10 @@ void Bootstrap_FastRangeCheck_Condition(SecretKey& bfv_secret_key, Ciphertext& o
         }
     }
 
-    for(int i = 0; i < firstLevel; i++){
+    for(int i = 0; i < eval_level1; i++){
         kCTs[i].release();
     }
-    for(int i = 0; i < secondLevel; i++){
+    for(int i = 0; i < eval_level2; i++){
         kToMCTs[i].release();
     }
 
@@ -627,12 +633,9 @@ void Bootstrap_FastRangeCheck_Condition(SecretKey& bfv_secret_key, Ciphertext& o
 
     time_start = chrono::high_resolution_clock::now();
 
-    map<int, bool> modDownIndices_firstLevel = {{2, false}, {8, false}, {32, false}, {128, false}, {512, false}};
-    map<int, bool> modDownIndices_secondLevel = {{2, false}, {8, false}, {32, false}, {64, false}, {128, false}, {512, false}};
-
-    vector<Ciphertext> raise_kCTs(256*3), raise_kToMCTs(1024);
-    calUptoDegreeK_bigPrime(raise_kCTs, output, 256*3, relin_keys, context, modDownIndices_firstLevel);
-    calUptoDegreeK_bigPrime(raise_kToMCTs, raise_kCTs[raise_kCTs.size()-1], 1024, relin_keys, context, modDownIndices_secondLevel);
+    vector<Ciphertext> raise_kCTs(raise_level1), raise_kToMCTs(raise_level2);
+    calUptoDegreeK_bigPrime(raise_kCTs, output, raise_level1, relin_keys, context, raise_mod1);
+    calUptoDegreeK_bigPrime(raise_kToMCTs, raise_kCTs[raise_kCTs.size()-1], raise_level2, relin_keys, context, raise_mod2);
 
     output = raise_kToMCTs[raise_kToMCTs.size()-1];
 
