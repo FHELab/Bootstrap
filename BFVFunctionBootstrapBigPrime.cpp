@@ -29,8 +29,9 @@ int main() {
     bfv_params.set_poly_modulus_degree(ring_dim);
 
     auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 30, 60, 60, 60, 60, 60,
-                                                          60, 60, 60, 60, 60, 60, 60,
+                                                          60, 60, 60, 60, 60, 60,
                                                           60, 60, 60, 60, 50, 60 });
+
     bfv_params.set_coeff_modulus(coeff_modulus);
     bfv_params.set_plain_modulus(p);
 

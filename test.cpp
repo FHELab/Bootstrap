@@ -24,7 +24,7 @@ int main() {
     EncryptionParameters bfv_params(scheme_type::bfv);
     bfv_params.set_poly_modulus_degree(ring_dim);
     auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 30, 60, 60, 60, 60, 60,
-                                                          60, 60, 60, 60, 60, 60, 60,
+                                                          60, 60, 60, 60, 60, 60,
                                                           60, 60, 60, 60, 50, 60 });
     bfv_params.set_coeff_modulus(coeff_modulus);
     bfv_params.set_plain_modulus(p);
@@ -96,7 +96,7 @@ int main() {
     // vector<uint64_t> msg = {0, 21845, 32768, 43490, 10922, 30000, 50000, 20000};
     vector<uint64_t> msg(ring_dim);
     for (int i = 0; i < ring_dim; i++) {
-        msg[i] = (i % 2 == 0)? 55 : 10000;
+        msg[i] = (i % 2 == 0)? 10 : 10000;
         // msg[i] = 2;
     } //= {0, 21845, 32768, 43490, 10922, 30000, 50000, 20000};
     Plaintext pl;
@@ -115,7 +115,8 @@ int main() {
     
     chrono::high_resolution_clock::time_point time_start, time_end;
     time_start = chrono::high_resolution_clock::now();
-    Bootstrap_FastRangeCheck_Condition(bfv_secret_key, output, c, poly_modulus_degree_glb, relin_keys, seal_context, fastRangeCheckIndices_63_bigPrime, 12, 16, modDownIndices_1, modDownIndices_2);
+    Bootstrap_FastRangeCheck_Condition(bfv_secret_key, output, c, poly_modulus_degree_glb, relin_keys, seal_context, fastRangeCheckIndices_63_bigPrime,
+                                       8, 16, modDownIndices_1, modDownIndices_2, 256, 256, modDownIndices_1, modDownIndices_1);
     time_end = chrono::high_resolution_clock::now();
     cout << "time: " << chrono::duration_cast<chrono::microseconds>(time_end - time_start).count() << endl;
     cout << decryptor.invariant_noise_budget(output) << " bits\n";

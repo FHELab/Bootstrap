@@ -551,6 +551,41 @@ void Bootstrap_FastRangeCheck_Random(SecretKey& bfv_secret_key, Ciphertext& outp
     MemoryManager::SwitchProfile(std::move(old_prof_larger));
 }
 
+Ciphertext raisePowerToPrime(const SEALContext& context, const RelinKeys &relin_keys, Ciphertext& x, int prime = prime_p) {
+    Ciphertext output;
+    bool init_flag = false;
+    bool mod_down = false;
+    Evaluator evaluator(context);
+
+    prime = prime / 2;
+
+    while (prime) {
+        evaluator.square_inplace(x);
+        evaluator.relinearize_inplace(x, relin_keys);
+        if (!mod_down) {
+            mod_down = true;
+        } else {
+            evaluator.mod_switch_to_next_inplace(x);
+            mod_down = false;
+        }
+
+        if (prime % 2) {
+            if (!init_flag) {
+                output = x;
+                init_flag = true;
+            } else {
+                evaluator.mod_switch_to_inplace(output, x.parms_id());
+                evaluator.multiply_inplace(output, x);
+                evaluator.relinearize_inplace(x, relin_keys);
+            }
+        }
+        prime = prime / 2;
+    }
+    cout << endl;
+
+    return output;
+}
+
 
 // bootstrap rangecheck function that calculate a poly given error bound, condition mapping, raise random result to 1
 void Bootstrap_FastRangeCheck_Condition(SecretKey& bfv_secret_key, Ciphertext& output, const Ciphertext& input, const size_t& degree, const RelinKeys &relin_keys,
@@ -633,11 +668,7 @@ void Bootstrap_FastRangeCheck_Condition(SecretKey& bfv_secret_key, Ciphertext& o
 
     time_start = chrono::high_resolution_clock::now();
 
-    vector<Ciphertext> raise_kCTs(raise_level1), raise_kToMCTs(raise_level2);
-    calUptoDegreeK_bigPrime(raise_kCTs, output, raise_level1, relin_keys, context, raise_mod1);
-    calUptoDegreeK_bigPrime(raise_kToMCTs, raise_kCTs[raise_kCTs.size()-1], raise_level2, relin_keys, context, raise_mod2);
-
-    output = raise_kToMCTs[raise_kToMCTs.size()-1];
+    output = raisePowerToPrime(context, relin_keys, output, prime_p);
 
     time_end = chrono::high_resolution_clock::now();
     cout << "   second raise power half: " << chrono::duration_cast<chrono::microseconds>(time_end - time_start).count() << endl;
