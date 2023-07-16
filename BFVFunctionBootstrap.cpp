@@ -172,7 +172,7 @@ int main() {
 
     // Ciphertext coeff = slotToCoeff(seal_context, seal_context_last, ct_sqrt_list, U_plain_list, gal_keys_coeff, ring_dim);
     s = chrono::high_resolution_clock::now();
-    Ciphertext coeff = slotToCoeff_WOPrepreocess(seal_context, seal_context_last, ct_sqrt_list, gal_keys_coeff, ring_dim, p);
+    Ciphertext coeff = slotToCoeff_WOPrepreocess(seal_context, seal_context_last, ct_sqrt_list, gal_keys_coeff, 128, ring_dim, p);
     e = chrono::high_resolution_clock::now();
     cout << "slotToCoeff_WOPrepreocess: " << chrono::duration_cast<chrono::microseconds>(e - s).count() << endl;
 
