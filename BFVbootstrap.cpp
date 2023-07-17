@@ -267,7 +267,7 @@ int main() {
 
 
 
-    decryptor.decrypt(eval_result, pl);
+    decryptor.decrypt(range_check_res, pl);
     batch_encoder.decode(pl, input_v);
     cout << "Result !!!!! ---------------------\n" << input_v << endl;
 
