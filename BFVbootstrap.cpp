@@ -207,7 +207,6 @@ int main() {
     Ciphertext coeff = slotToCoeff_WOPrepreocess(seal_context, seal_context_last, ct_sqrt_list, gal_keys_coeff, 128, ring_dim, p);
     e = chrono::high_resolution_clock::now();
     cout << "slotToCoeff_WOPrepreocess: " << chrono::duration_cast<chrono::microseconds>(e - s).count() << endl;
-    cout << decryptor.invariant_noise_budget(coeff) << endl;
 
 
 
@@ -222,22 +221,11 @@ int main() {
     auto ct_in_iter = util::iter(copy_coeff);
     ct_in_iter += coeff.size() - 1;
     seal::util::set_zero_poly(ring_dim, 1, coeff.data(1)); // notice that the coeff_mod.size() is hardcoded to 1, thus this needs to be performed on the last level
-
     evaluator.switch_key_inplace(coeff, *ct_in_iter, static_cast<const KSwitchKeys &>(ksk_to_lwe), 0, my_pool);
-    cout << decryptor.invariant_noise_budget(coeff) << endl;
-
-
-
-
-
 
     vector<regevCiphertext> lwe_ct_results = extractRLWECiphertextToLWECiphertext(coeff);
-
     e = chrono::high_resolution_clock::now();
     cout << "keySwitch + extraction: " << chrono::duration_cast<chrono::microseconds>(e - s).count() << endl;
-
-    // vector<int> msg(ring_dim);
-    // regevDec_Value(msg, lwe_ct_results, lwe_sk, lwe_params, bootstrap_param.errorRange);
 
 
 

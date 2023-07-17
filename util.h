@@ -429,7 +429,6 @@ Ciphertext slotToCoeff_WOPrepreocess(const SEALContext& context, const SEALConte
 
     vector<Ciphertext> result(sq_rt);
     for (int iter = 0; iter < sq_rt; iter++) {
-        cout << iter << endl;
         for (int j = 0; j < (int) ct_sqrt_list.size(); j++) {
 
             time_start = chrono::high_resolution_clock::now();
