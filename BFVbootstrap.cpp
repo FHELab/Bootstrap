@@ -18,6 +18,7 @@ int main() {
     int n = 1024;
     BootstrapParam bootstrap_param = BootstrapParam(65537, 128, 512, 256, 256);
     int p = bootstrap_param.ciphertextSpacePrime;
+    int interval = 2;
 
     EncryptionParameters bfv_params(scheme_type::bfv);
     bfv_params.set_poly_modulus_degree(ring_dim);
@@ -118,7 +119,7 @@ int main() {
     Ciphertext bfv_input;
     vector<uint64_t> input_v(poly_modulus_degree_glb);
     for (int i = 0; i < (int) poly_modulus_degree_glb; i++) {
-        input_v[i] = (i % 512) * 128;
+        input_v[i] = (i % 512) * interval;
     }
     Plaintext pl;
     batch_encoder.encode(input_v, pl);
@@ -154,10 +155,29 @@ int main() {
         evaluator.transform_to_ntt_inplace(sk_sqrt_list[i]);
     }
 
-    for (int i = 0; i < 9; i++) {
+    for (int i = 0; i < 8; i++) {
         evaluator.mod_switch_to_next_inplace(bfv_input);
     }
 
+    chrono::high_resolution_clock::time_point time_start, time_end, s, e;
+
+    time_start = chrono::high_resolution_clock::now();
+
+    s = chrono::high_resolution_clock::now();
+    if (interval < 128) { // interval for input space less than error bound, will lose precision if directly extracted, first scale to enlarge the distance
+        pl.resize(ring_dim);
+        pl.parms_id() = parms_id_zero;
+        for (int i = 0; i < (int) ring_dim; i++) {
+            pl.data()[i] = 0;
+        }
+        pl.data()[0] = 128/interval;
+
+        evaluator.multiply_plain_inplace(bfv_input, pl);
+    }
+    e = chrono::high_resolution_clock::now();
+    cout << "scale preprocess input: " << chrono::duration_cast<chrono::microseconds>(e - s).count() << endl;
+
+    s = chrono::high_resolution_clock::now();
     Ciphertext bfv_input_copy(bfv_input);
 
     Evaluator eval_coeff(seal_context_last);
@@ -168,6 +188,8 @@ int main() {
         eval_coeff.rotate_rows(bfv_input_copy, sq_ct * i, gal_keys_coeff, ct_sqrt_list[i+sq_ct]);
         eval_coeff.transform_to_ntt_inplace(ct_sqrt_list[i+sq_ct]);
     }
+    e = chrono::high_resolution_clock::now();
+    cout << "prepare rotated ntt input: " << chrono::duration_cast<chrono::microseconds>(e - s).count() << endl;
 
     // vector<Plaintext> U_plain_list(ring_dim);
     // for (int iter = 0; iter < sq_ct; iter++) {
@@ -180,16 +202,12 @@ int main() {
 
 
 
-    chrono::high_resolution_clock::time_point time_start, time_end, s, e;
-
-    time_start = chrono::high_resolution_clock::now();
-
-
     // Ciphertext coeff = slotToCoeff(seal_context, seal_context_last, ct_sqrt_list, U_plain_list, gal_keys_coeff, ring_dim);
     s = chrono::high_resolution_clock::now();
     Ciphertext coeff = slotToCoeff_WOPrepreocess(seal_context, seal_context_last, ct_sqrt_list, gal_keys_coeff, 128, ring_dim, p);
     e = chrono::high_resolution_clock::now();
     cout << "slotToCoeff_WOPrepreocess: " << chrono::duration_cast<chrono::microseconds>(e - s).count() << endl;
+    cout << decryptor.invariant_noise_budget(coeff) << endl;
 
 
 
@@ -206,6 +224,7 @@ int main() {
     seal::util::set_zero_poly(ring_dim, 1, coeff.data(1)); // notice that the coeff_mod.size() is hardcoded to 1, thus this needs to be performed on the last level
 
     evaluator.switch_key_inplace(coeff, *ct_in_iter, static_cast<const KSwitchKeys &>(ksk_to_lwe), 0, my_pool);
+    cout << decryptor.invariant_noise_budget(coeff) << endl;
 
 
 
@@ -237,7 +256,8 @@ int main() {
 
     Ciphertext range_check_res;
     s = chrono::high_resolution_clock::now();
-    Bootstrap_RangeCheck_PatersonStockmeyer(range_check_res, eval_result, rangeCheckIndices_bfv, p, ring_dim,
+    /* for bootstrap function evaluation, use rangeCheckIndices_bfv for identity mapping, and rangeCheckIndices_bfv_random for random mapping */
+    Bootstrap_RangeCheck_PatersonStockmeyer(range_check_res, eval_result, rangeCheckIndices_bfv_random, p, ring_dim,
                                             relin_keys, seal_context, bfv_secret_key, 0, false, false,
                                             bootstrap_param.firstLevelDegree, bootstrap_param.secondLevelDegree);
 
