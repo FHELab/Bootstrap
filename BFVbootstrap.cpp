@@ -256,8 +256,8 @@ int main() {
 
     Ciphertext range_check_res;
     s = chrono::high_resolution_clock::now();
-    /* for bootstrap function evaluation, use rangeCheckIndices_bfv for identity mapping, and rangeCheckIndices_bfv_random for random mapping */
-    Bootstrap_RangeCheck_PatersonStockmeyer(range_check_res, eval_result, rangeCheckIndices_bfv_random, p, ring_dim,
+    /* for bootstrap function evaluation, use rangeCheckIndices_bfv for identity mapping, and rangeCheckIndices_bfv_square for square mapping */
+    Bootstrap_RangeCheck_PatersonStockmeyer(range_check_res, eval_result, rangeCheckIndices_bfv_square, p, ring_dim,
                                             relin_keys, seal_context, bfv_secret_key, 0, false, false,
                                             bootstrap_param.firstLevelDegree, bootstrap_param.secondLevelDegree);
 
