@@ -15,13 +15,16 @@ int main() {
     ////////////////////////////////////////////// PREPARE (R)LWE PARAMS ///////////////////////////////////////////////
     int ring_dim = poly_modulus_degree_glb;
     int n = 1024;
-    BootstrapParam bootstrap_param = BootstrapParam(65537, 128, 512, 16, 16);
+    map<int, bool> modDownIndices_1 = {{4, false}, {16, false}};
+    map<int, bool> modDownIndices_2 = {{4, false}, {16, false}};
+    BootstrapParam bootstrap_param = BootstrapParam(65537, 128, 512, 16, 32);
     int p = bootstrap_param.ciphertextSpacePrime;
+    int f_zero = 32768;
 
     EncryptionParameters bfv_params(scheme_type::bfv);
     bfv_params.set_poly_modulus_degree(ring_dim);
 
-    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 55,
+    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 30, 60,
                                                           60, 60, 60,
                                                           50, 60 });
     bfv_params.set_coeff_modulus(coeff_modulus);
@@ -99,7 +102,7 @@ int main() {
     Ciphertext bfv_input;
     vector<uint64_t> input_v(poly_modulus_degree_glb);
     for (int i = 0; i < (int) poly_modulus_degree_glb; i++) {
-        input_v[i] = i % 2 == 0 ? 10 : 32777;
+        input_v[i] = i % 2 == 0 ? 100 : 32668;
     }
     Plaintext pl;
     batch_encoder.encode(input_v, pl);
@@ -143,6 +146,10 @@ int main() {
     cout << "... prepared bfv input ciphertext nearly out of noise budget ...\n";
     Ciphertext bfv_input_copy(bfv_input);
 
+    chrono::high_resolution_clock::time_point time_start, time_end, s, e;
+
+    time_start = chrono::high_resolution_clock::now();
+    s = chrono::high_resolution_clock::now();
     Evaluator eval_coeff(seal_context_last);
     eval_coeff.rotate_columns_inplace(bfv_input, gal_keys_coeff);
     for (int i = 0; i < sq_ct; i++) {
@@ -152,6 +159,8 @@ int main() {
         eval_coeff.transform_to_ntt_inplace(ct_sqrt_list[i+sq_ct]);
     }
 
+    e = chrono::high_resolution_clock::now();
+    cout << "input ntt time: " << chrono::duration_cast<chrono::microseconds>(e - s).count() << endl;
     cout << "... prepared rotated bfv input ciphertext ...\n";
 
     // vector<Plaintext> U_plain_list(ring_dim);
@@ -163,11 +172,6 @@ int main() {
     //     }
     // }
 
-
-
-    chrono::high_resolution_clock::time_point time_start, time_end, s, e;
-
-    time_start = chrono::high_resolution_clock::now();
 
 
     // Ciphertext coeff = slotToCoeff(seal_context, seal_context_last, ct_sqrt_list, U_plain_list, gal_keys_coeff, ring_dim);
@@ -222,9 +226,8 @@ int main() {
     s = chrono::high_resolution_clock::now();
 
     Ciphertext range_check_res;
-    map<int, bool> modDownIndices = {{4, false}, {16, false}};
-    Bootstrap_FastRangeCheck_Random(bfv_secret_key, range_check_res, eval_result, ring_dim, relin_keys, seal_context, fastRangeCheckIndices_63_twoShot,
-                                    bootstrap_param.firstLevelDegree, bootstrap_param.secondLevelDegree, modDownIndices, modDownIndices);
+    Bootstrap_FastRangeCheck_Random(bfv_secret_key, range_check_res, eval_result, ring_dim, relin_keys, seal_context, fastRangeCheckIndices_127_twoRange,
+                                    bootstrap_param.firstLevelDegree, bootstrap_param.secondLevelDegree, modDownIndices_1, modDownIndices_2, f_zero);
 
 
     e = chrono::high_resolution_clock::now();

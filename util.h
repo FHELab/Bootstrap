@@ -480,7 +480,7 @@ Ciphertext slotToCoeff_WOPrepreocess(const SEALContext& context, const SEALConte
 // bootstrap rangecheck function that calculate a poly given error bound, and no care for input outside domain
 void Bootstrap_FastRangeCheck_Random(SecretKey& bfv_secret_key, Ciphertext& output, const Ciphertext& input, const size_t& degree, const RelinKeys &relin_keys,
                                      const SEALContext& context, const vector<uint64_t>& rangeCheckIndices, const int firstLevel, const int secondLevel,
-                                     map<int, bool>& firstLevelMod, map<int, bool>& secondLevelMod) {
+                                     map<int, bool>& firstLevelMod, map<int, bool>& secondLevelMod, const int f_zero = 0) {
     MemoryPoolHandle my_pool_larger = MemoryPoolHandle::New(true);
     auto old_prof_larger = MemoryManager::SwitchProfile(std::make_unique<MMProfFixed>(std::move(my_pool_larger)));
 
@@ -546,6 +546,11 @@ void Bootstrap_FastRangeCheck_Random(SecretKey& bfv_secret_key, Ciphertext& outp
     evaluator.relinearize_inplace(temp_relin, relin_keys);
     evaluator.add_inplace(output, temp_relin);
     temp_relin.release();
+
+    if (f_zero) {
+        plainInd.data()[0] = f_zero;
+        evaluator.add_plain_inplace(output, plainInd);
+    }
 
     MemoryManager::SwitchProfile(std::move(old_prof_larger));
 }

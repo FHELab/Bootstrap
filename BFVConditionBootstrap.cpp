@@ -150,6 +150,10 @@ int main() {
     cout << "... prepared bfv input ciphertext nearly out of noise budget ...\n";
     Ciphertext bfv_input_copy(bfv_input);
 
+    chrono::high_resolution_clock::time_point time_start, time_end, s, e;
+    time_start = chrono::high_resolution_clock::now();
+
+    s = chrono::high_resolution_clock::now();
     Evaluator eval_coeff(seal_context_last);
     eval_coeff.rotate_columns_inplace(bfv_input, gal_keys_coeff);
     for (int i = 0; i < sq_ct; i++) {
@@ -158,6 +162,8 @@ int main() {
         eval_coeff.rotate_rows(bfv_input_copy, sq_rt * i, gal_keys_coeff, ct_sqrt_list[i+sq_ct]);
         eval_coeff.transform_to_ntt_inplace(ct_sqrt_list[i+sq_ct]);
     }
+    e = chrono::high_resolution_clock::now();
+    cout << "bfv input ntt time: " << chrono::duration_cast<chrono::microseconds>(e - s).count() << endl;
 
     cout << "... prepared rotated bfv input ciphertext ...\n";
 
@@ -171,8 +177,6 @@ int main() {
     // }
 
 
-    chrono::high_resolution_clock::time_point time_start, time_end, s, e;
-    time_start = chrono::high_resolution_clock::now();
 
 
     // Ciphertext coeff = slotToCoeff(seal_context, seal_context_last, ct_sqrt_list, U_plain_list, gal_keys_coeff, sq_rt, ring_dim);
