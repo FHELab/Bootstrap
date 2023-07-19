@@ -513,8 +513,8 @@ void Bootstrap_FastRangeCheck_Random(SecretKey& bfv_secret_key, Ciphertext& outp
         Ciphertext levelSum;
         bool flag = false;
         for(int j = 0; j < firstLevel; j++) {
-            if(rangeCheckIndices[i*secondLevel+j] != 0) {
-                plainInd.data()[0] = rangeCheckIndices[i*secondLevel+j];
+            if(rangeCheckIndices[i*firstLevel+j] != 0) {
+                plainInd.data()[0] = rangeCheckIndices[i*firstLevel+j];
                 if (!flag) {
                     evaluator.multiply_plain(kCTs[j], plainInd, levelSum);
                     flag = true;
