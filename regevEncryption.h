@@ -47,6 +47,7 @@ void regevEncSK_Value(regevCiphertext& ct, const int msg, const regevSK& sk, con
 void regevEncPK(regevCiphertext& ct, const int& msg, const regevPK& pk, const regevParam& param);
 void regevDec(int& msg, const regevCiphertext& ct, const regevSK& sk, const regevParam& param);
 void regevDec_Mod3(int& msg, const regevCiphertext& ct, const regevSK& sk, const regevParam& param);
+void regevDec_BGV_Mod3(int& msg, const regevCiphertext& ct, const regevSK& sk, const regevParam& param);
 void regevDec_Value(int& msg, const regevCiphertext& ct, const regevSK& sk, const regevParam& param, const int errorRange);
 
 /////////////////////////////////////////////////////////////////// Below are implementation
@@ -260,4 +261,29 @@ void regevDec_Mod3_Mixed(vector<int>& msg, const vector<regevCiphertext>& ct, co
             msg[i] = 2;
         }
     }
+}
+
+void regevDec_BGV_Mod3(vector<int>& msg, const vector<regevCiphertext>& ct, const regevSK& sk, const regevParam& param){
+    msg.resize(ct.size());
+
+    int q = param.q;
+    int n = param.n;
+    // cout << n << endl;
+    NativeInteger inner(0);
+    for (int i = 0; i < (int) ct.size(); i++) {
+        int temp = 0;
+        for (int j = 0; j < n; j++) {
+            long mul_tmp = (ct[i].a[j].ConvertToInt() * sk[j].ConvertToInt()) % q;
+            mul_tmp = mul_tmp < 0 ? mul_tmp + q : mul_tmp;
+            temp = (temp + (int) mul_tmp) % q;
+        }
+        temp = (temp + ct[i].b.ConvertToInt()) % q;
+        cout << temp << " ";
+        if (temp % 2 == 1) {
+            msg[i] = 1;
+        } else {
+            msg[i] = 0;
+        }
+    }
+    cout << endl;
 }

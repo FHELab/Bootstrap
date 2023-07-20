@@ -946,7 +946,7 @@ vector<regevCiphertext> extractRLWECiphertextToLWECiphertext(Ciphertext& rlwe_ct
         }
 
         float temp_f = ((float) rlwe_ct.data(0)[cnt]) * ((float) p) / ((long double) big_prime);
-        uint32_t decimal = temp_f - ((int) temp_f) * 100;
+        uint32_t decimal = (temp_f - ((int) temp_f)) * 100;
         float rounding = dist(engine) < decimal ? 1 : 0;
 
         long temp = ((int) (temp_f + rounding)) % p;

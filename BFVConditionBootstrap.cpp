@@ -17,7 +17,7 @@ int main() {
     int n = 1024;
     BootstrapParam bootstrap_param = BootstrapParam(prime_p, 192, 4096, 16, 16, 256*3, 1024);
     int p = bootstrap_param.ciphertextSpacePrime;
-    int sq_ct = 128, sq_rt = 256; // 32768 = 128*256, divide into 128 share, and each has 256 slots to calculate
+    int sq_ct = 128, sq_rt = 256; // half of ring_dim: 32768 = 128*256, divide into 128 share, and each has 256 slots to calculate
     map<int, bool> eval_mod1 = {{4, false}, {16, false}};
     map<int, bool> eval_mod2 = {{4, false}, {16, false}};
 

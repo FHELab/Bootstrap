@@ -10,21 +10,107 @@ using namespace seal;
 using namespace std;
 
 
+uint128_t computeDelta(const long c, const long t = 4, const long Qj = 1152921504606837793, const long Qi = prime_p) {
+    return ((-c / t) % (Qj / Qi)) * t;
+}
+
+vector<regevCiphertext> extractBGV(Ciphertext& bgv_ct, const int ring_dim = poly_modulus_degree_glb, const long t = 4,
+                                   const int n = 4, const long Qi = prime_p, const long Qj = 1152921504606837793) {
+    vector<regevCiphertext> results(ring_dim);
+
+    for (int cnt = 0; cnt < ring_dim; cnt++) {
+        results[cnt].a = NativeVector(n);
+        int ind = 0;
+        for (int i = cnt; i >= 0 && ind < n; i--) {
+            uint128_t temp = (uint128_t) bgv_ct.data(1)[i];
+            temp = ((uint128_t) (Qi * (temp + computeDelta(temp))) / Qj ) % Qi;
+
+            results[cnt].a[ind] = temp < 0 ? Qi + temp : temp;
+            ind++;
+        }
+
+        for (int i = ring_dim-1; i > ring_dim - n + cnt && ind < n; i--) {
+            uint128_t temp = (uint128_t) bgv_ct.data(1)[i];
+            temp = ((uint128_t) (Qi * (temp + computeDelta(temp))) / Qj ) % Qi;
+
+            results[cnt].a[ind] = -temp < 0 ? Qi - temp : -temp;
+            ind++;
+        }
+
+        uint128_t temp = (uint128_t) bgv_ct.data(0)[cnt];
+        temp = ((uint128_t) (Qi * (temp + computeDelta(temp))) / Qj ) % Qi;
+
+        results[cnt].b = temp % ((int) Qi);
+    }
+
+    return results;
+}
+
+
+
+
+void regevDec_BGV_no(vector<int>& msg, const vector<regevCiphertext>& ct, const regevSK& sk, const regevParam& param){
+    msg.resize(ct.size());
+
+    // int q = param.q;
+    uint64_t q = 1152921504606837793;
+    int n = param.n;
+
+    for (int i = 0; i < (int) ct.size(); i++) {
+        uint128_t temp = 0;
+        for (int j = 0; j < n; j++) {
+            uint128_t mul_tmp = (ct[i].a[j].ConvertToInt() * sk[j].ConvertToInt()) % q;
+            mul_tmp = mul_tmp < 0 ? mul_tmp + q : mul_tmp;
+            temp = (temp + (uint128_t) mul_tmp) % q;
+        }
+        temp = (temp + ct[i].b.ConvertToInt()) % q;
+        // cout << temp << " ";
+        if (temp % 2 == 1) {
+            msg[i] = 1;
+        } else {
+            msg[i] = 0;
+        }
+    }
+    cout << endl;
+}
+
+
+
+vector<regevCiphertext> extractBGV_noMod(Ciphertext& bgv_ct, const int ring_dim = poly_modulus_degree_glb, const long t = 4,
+                                   const int n = 4, const long Qi = prime_p, const long Qj = 1152921504606837793) {
+    vector<regevCiphertext> results(ring_dim);
+
+    for (int cnt = 0; cnt < ring_dim; cnt++) {
+        results[cnt].a = NativeVector(n);
+        int ind = 0;
+        for (int i = cnt; i >= 0 && ind < n; i--) {
+            results[cnt].a[ind] = (uint64_t) bgv_ct.data(1)[i];
+            ind++;
+        }
+
+        for (int i = ring_dim-1; i > ring_dim - n + cnt && ind < n; i--) {
+            results[cnt].a[ind] = Qj - (uint64_t) bgv_ct.data(1)[i];
+            ind++;
+        }
+        results[cnt].b = (uint64_t) bgv_ct.data(0)[cnt];
+    }
+
+    return results;
+}
 
 int main() {
 
 
     ////////////////////////////////////////////// PREPARE (R)LWE PARAMS ///////////////////////////////////////////////
     int ring_dim = poly_modulus_degree_glb;
-    // int n = 1024;
+    int n = 4;
     int p = prime_p;
-    // int sq_ct = 128, sq_rt = 256; // 32768 = 128*256, divide into 128 share, and each has 256 slots to calculate
+    int sq_ct = 2, sq_rt = 4;
 
 
-    EncryptionParameters bfv_params(scheme_type::bfv);
+    EncryptionParameters bfv_params(scheme_type::bgv);
     bfv_params.set_poly_modulus_degree(ring_dim);
-    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 30, 60, 60, 60, 60, 60,
-                                                          60, 60, 60, 60, 60, 60,
+    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 30, 60, 60, 60, 60, 60, 60,
                                                           60, 60, 60, 60, 50, 60 });
     bfv_params.set_coeff_modulus(coeff_modulus);
     bfv_params.set_plain_modulus(p);
@@ -41,9 +127,33 @@ int main() {
 
 
     // inverse_ntt_negacyclic_harvey(new_key.data().data(), seal_context.key_context_data()->small_ntt_tables()[0]);  
+    KeyGenerator new_key_keygen(seal_context, n);
+    SecretKey new_key = new_key_keygen.secret_key();
+    inverse_ntt_negacyclic_harvey(new_key.data().data(), seal_context.key_context_data()->small_ntt_tables()[0]);
+    for (int i = 0; i < n; i++) {
+        cout <<  new_key.data()[i] << " ";
+    }
+    cout << endl << endl;
+    auto lwe_params = regevParam(n, p, 1.3, ring_dim); 
+    auto lwe_sk = regevGenerateSecretKey(lwe_params);
+    for (int i = 0; i < n; i++) {
+        // lwe_sk[i] = (uint64_t) new_key.data()[i] > (uint64_t) p ? p-1 : new_key.data()[i];
+        lwe_sk[i] = (uint64_t) new_key.data()[i];
+        cout << lwe_sk[i] << " ";
+    }
+    cout << endl;
+    seal::util::RNSIter new_key_rns(new_key.data().data(), ring_dim);
+    ntt_negacyclic_harvey(new_key_rns, coeff_modulus.size(), seal_context.key_context_data()->small_ntt_tables());
 
     KeyGenerator keygen(seal_context);
     SecretKey bfv_secret_key = keygen.secret_key();
+
+    KSwitchKeys ksk;
+    seal::util::ConstPolyIter secret_key_before(bfv_secret_key.data().data(), ring_dim, coeff_modulus.size());
+
+    new_key_keygen.generate_kswitch_keys(secret_key_before, 1, static_cast<KSwitchKeys &>(ksk), false);
+    ksk.parms_id() = seal_context.key_parms_id();
+
 
     MemoryPoolHandle my_pool = MemoryPoolHandle::New();
 
@@ -59,22 +169,38 @@ int main() {
     Evaluator evaluator(seal_context);
     BatchEncoder batch_encoder(seal_context);
     Decryptor decryptor(seal_context, bfv_secret_key);
-
-    // GaloisKeys gal_keys_coeff;
     
-    // vector<Modulus> coeff_modulus_last = coeff_modulus;
-    // coeff_modulus_last.erase(coeff_modulus_last.begin() + 2, coeff_modulus_last.end()-1);
-    // EncryptionParameters parms_last = bfv_params;
-    // parms_last.set_coeff_modulus(coeff_modulus_last);
-    // SEALContext seal_context_last = SEALContext(parms_last, true, sec_level_type::none);
+    GaloisKeys gal_keys, gal_keys_coeff;
+    vector<int> rot_steps = {1};
+    // for (int i = 0; i < n;) {
+    //     rot_steps.push_back(i);
+    //     i += sqrt(n);
+    // }
+    keygen.create_galois_keys(rot_steps, gal_keys);
+    
+    vector<Modulus> coeff_modulus_last = coeff_modulus;
+    coeff_modulus_last.erase(coeff_modulus_last.begin() + 2, coeff_modulus_last.end()-1);
+    EncryptionParameters parms_last = bfv_params;
+    parms_last.set_coeff_modulus(coeff_modulus_last);
+    SEALContext seal_context_last = SEALContext(parms_last, true, sec_level_type::none);
 
-    // SecretKey sk_last;
-    // sk_last.data().resize(coeff_modulus_last.size() * ring_dim);
-    // sk_last.parms_id() = seal_context_last.key_parms_id();
-    // util::set_poly(bfv_secret_key.data().data(), ring_dim, coeff_modulus_last.size() - 1, sk_last.data().data());
-    // util::set_poly(
-    //     bfv_secret_key.data().data() + ring_dim * (coeff_modulus.size() - 1), ring_dim, 1,
-    //     sk_last.data().data() + ring_dim * (coeff_modulus_last.size() - 1));
+    SecretKey sk_last;
+    sk_last.data().resize(coeff_modulus_last.size() * ring_dim);
+    sk_last.parms_id() = seal_context_last.key_parms_id();
+    util::set_poly(bfv_secret_key.data().data(), ring_dim, coeff_modulus_last.size() - 1, sk_last.data().data());
+    util::set_poly(
+        bfv_secret_key.data().data() + ring_dim * (coeff_modulus.size() - 1), ring_dim, 1,
+        sk_last.data().data() + ring_dim * (coeff_modulus_last.size() - 1));
+
+    vector<int> rot_steps_coeff = {1};
+    for (int i = 0; i < ring_dim/2;) {
+        if (find(rot_steps_coeff.begin(), rot_steps_coeff.end(), i) == rot_steps_coeff.end()) {
+            rot_steps_coeff.push_back(i);
+        }
+        i += sq_rt;
+    }
+    KeyGenerator keygen_last(seal_context_last, sk_last);
+    keygen_last.create_galois_keys(rot_steps_coeff, gal_keys_coeff);
 
 
     // vector<int> rot_steps_coeff = {1};
@@ -96,7 +222,7 @@ int main() {
     // vector<uint64_t> msg = {0, 21845, 32768, 43490, 10922, 30000, 50000, 20000};
     vector<uint64_t> msg(ring_dim);
     for (int i = 0; i < ring_dim; i++) {
-        msg[i] = (i % 2 == 0)? 10 : 10000;
+        msg[i] = (i% 2 == 0) ? 0 : 1;
         // msg[i] = 2;
     } //= {0, 21845, 32768, 43490, 10922, 30000, 50000, 20000};
     Plaintext pl;
@@ -104,26 +230,98 @@ int main() {
     batch_encoder.encode(msg, pl);
     encryptor.encrypt(pl, c);
 
+    for (int i = 0; i < 11; i++) {
+        evaluator.mod_switch_to_next_inplace(c);
+    }
+
+    /////////////////// TEST BGV PLAINTEXT ENCODING + EXTRACTION /////////////////////
+    Ciphertext bfv_input_copy(c);
+    vector<Ciphertext> ct_sqrt_list(2*sq_ct);
+
+    Evaluator eval_coeff(seal_context_last);
+    eval_coeff.rotate_columns_inplace(c, gal_keys_coeff);
+    for (int i = 0; i < sq_ct; i++) {
+        eval_coeff.rotate_rows(c, sq_rt * i, gal_keys_coeff, ct_sqrt_list[i]);
+        eval_coeff.transform_to_ntt_inplace(ct_sqrt_list[i]);
+        eval_coeff.rotate_rows(bfv_input_copy, sq_rt * i, gal_keys_coeff, ct_sqrt_list[i+sq_ct]);
+        eval_coeff.transform_to_ntt_inplace(ct_sqrt_list[i+sq_ct]);
+    }
+
+    Ciphertext coeff = slotToCoeff_WOPrepreocess(seal_context, seal_context_last, ct_sqrt_list, gal_keys_coeff, sq_rt, ring_dim, p);
+
+
+    while(seal_context.last_parms_id() != coeff.parms_id()){
+        evaluator.mod_switch_to_next_inplace(coeff);
+    }
+    // cout << "Noise before key switch: " << decryptor.invariant_noise_budget(coeff) << " bits\n";
+
+    Ciphertext copy_coeff = coeff;
+    auto ct_in_iter = util::iter(copy_coeff);
+    ct_in_iter += coeff.size() - 1;
+    seal::util::set_zero_poly(ring_dim, 1, coeff.data(1)); // notice that the coeff_mod.size() is hardcoded to 1, thus this needs to be performed on the last level
+
+    evaluator.switch_key_inplace(coeff, *ct_in_iter, static_cast<const KSwitchKeys &>(ksk), 0, my_pool);
+
+    Decryptor decryptor_new(seal_context, new_key);
+    cout << "decoded (sanity check): \n";
+    decryptor_new.decrypt(coeff, pl);
+    for (int i = 0; i < ring_dim; i++) {
+        cout << pl.data()[i] << " ";
+    }
+    cout << endl;
+
+    cout << "Print ciphertext: " << endl;
+    for (int i = 0; i < ring_dim; i++) {
+        cout << coeff.data(0)[i] << " ";
+    }
+    cout << endl;
+    for (int i = 0; i < ring_dim; i++) {
+        cout << coeff.data(1)[i] << " ";
+    }
+    cout << endl;
+
+    vector<regevCiphertext> lwe_ct_results = extractBGV_noMod(coeff);
+
+    cout << "Print extracted LWE: " << endl;
+    for (int i = 0; i < lwe_ct_results.size(); i++) {
+        cout << "A: ";
+        for (int j = 0; j < n; j++) {
+            cout << lwe_ct_results[i].a[j].ConvertToInt() << " ";
+        }
+        cout << endl;
+        cout << "B: " << lwe_ct_results[i].b.ConvertToInt() << endl;
+    }
+
+    vector<int> msg_r(ring_dim);
+    regevDec_BGV_no(msg_r, lwe_ct_results, lwe_sk, lwe_params);
+
+    cout << "MSG: \n" << msg_r << endl;
 
 
 
-    ///////////// TEST NEW RANGE CHECK /////////////////////
-    Ciphertext output;
 
-    map<int, bool> modDownIndices_1 = {{4, false}, {12, false}};
-    map<int, bool> modDownIndices_2 = {{4, false}, {16, false}};
+
+
+
+
+
+    // ///////////// TEST NEW RANGE CHECK /////////////////////
+    // Ciphertext output;
+
+    // map<int, bool> modDownIndices_1 = {{4, false}, {12, false}};
+    // map<int, bool> modDownIndices_2 = {{4, false}, {16, false}};
     
-    chrono::high_resolution_clock::time_point time_start, time_end;
-    time_start = chrono::high_resolution_clock::now();
-    Bootstrap_FastRangeCheck_Condition(bfv_secret_key, output, c, poly_modulus_degree_glb, relin_keys, seal_context, fastRangeCheckIndices_63_bigPrime,
-                                       8, 16, modDownIndices_1, modDownIndices_2, 256, 256, modDownIndices_1, modDownIndices_1);
-    time_end = chrono::high_resolution_clock::now();
-    cout << "time: " << chrono::duration_cast<chrono::microseconds>(time_end - time_start).count() << endl;
-    cout << decryptor.invariant_noise_budget(output) << " bits\n";
+    // chrono::high_resolution_clock::time_point time_start, time_end;
+    // time_start = chrono::high_resolution_clock::now();
+    // Bootstrap_FastRangeCheck_Condition(bfv_secret_key, output, c, poly_modulus_degree_glb, relin_keys, seal_context, fastRangeCheckIndices_63_bigPrime,
+    //                                    8, 16, modDownIndices_1, modDownIndices_2, 256, 256, modDownIndices_1, modDownIndices_1);
+    // time_end = chrono::high_resolution_clock::now();
+    // cout << "time: " << chrono::duration_cast<chrono::microseconds>(time_end - time_start).count() << endl;
+    // cout << decryptor.invariant_noise_budget(output) << " bits\n";
 
-    decryptor.decrypt(output, pl);
-    batch_encoder.decode(pl, msg);
-    cout << "MSG ----------------\n" << msg << endl;
+    // decryptor.decrypt(output, pl);
+    // batch_encoder.decode(pl, msg);
+    // cout << "MSG ----------------\n" << msg << endl;
 
 
 
