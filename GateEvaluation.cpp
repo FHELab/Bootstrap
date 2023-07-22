@@ -15,12 +15,12 @@ int main() {
 
     ////////////////////////////////////////////// PREPARE (R)LWE PARAMS ///////////////////////////////////////////////
     int ring_dim = poly_modulus_degree_glb;
-    int n = 1024;
+    int n = 4;
     int p = 65537;
 
-    EncryptionParameters bfv_params(scheme_type::bfv);
+    EncryptionParameters bfv_params(scheme_type::bgv);
     bfv_params.set_poly_modulus_degree(ring_dim);
-    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 55, 28, 60, 60,
+    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 47, 45, 60, 60, 60,
                                                           60, 60, 60, 60, 60,
                                                           50, 60 });
     bfv_params.set_coeff_modulus(coeff_modulus);
@@ -72,7 +72,7 @@ int main() {
     keygen.create_galois_keys(rot_steps, gal_keys);
     
     vector<Modulus> coeff_modulus_last = coeff_modulus;
-    coeff_modulus_last.erase(coeff_modulus_last.begin() + 3, coeff_modulus_last.end()-1);
+    coeff_modulus_last.erase(coeff_modulus_last.begin() + 2, coeff_modulus_last.end()-1);
     EncryptionParameters parms_last = bfv_params;
     parms_last.set_coeff_modulus(coeff_modulus_last);
     SEALContext seal_context_last = SEALContext(parms_last, true, sec_level_type::none);
@@ -151,20 +151,21 @@ int main() {
     // NAND, AND --> -p/6 = 5*p/6
     // OR, NOR   --> -p/6-p/3 = p/2
     // XNOR, XOR --> -p/6+p/3 = p/6
-    vector<uint64_t> q_shift_constant(ring_dim, 0);
-    for (int i = 0; i < ring_dim; i++) {
-        if (i < ring_dim/3) {
-            q_shift_constant[i] = 5*p/6;
-        } else if (i < 2*ring_dim/3) {
-            q_shift_constant[i] = p/2;
-        } else {
-            q_shift_constant[i] = p/6;
-        }
-    }
+    // all NAND GATE
+    vector<uint64_t> q_shift_constant(ring_dim, 5*p/6);
+    // for (int i = 0; i < ring_dim; i++) {
+    //     if (i < ring_dim/3) {
+    //         q_shift_constant[i] = 5*p/6;
+    //     } else if (i < 2*ring_dim/3) {
+    //         q_shift_constant[i] = p/2;
+    //     } else {
+    //         q_shift_constant[i] = p/6;
+    //     }
+    // }
     vector<regevCiphertext> lwe_ct_results = bootstrap(lwe_ct_list, lwe_sk_encrypted, seal_context, seal_context_last, relin_keys, gal_keys, gal_keys_coeff,
-                                                       ring_dim, n, p, ksk, rangeCheckIndices_gateEvaluation, my_pool, bfv_secret_key, q_shift_constant,
+                                                       ring_dim, n, p, ksk, rangeCheckIndices_gate_16_workAround, my_pool, bfv_secret_key, q_shift_constant,
                                                        f_zero, gateEval);
-    regevDec_Mod3_Mixed(msg, lwe_ct_results, lwe_sk, lwe_params);
+    regevDec_BGV_Mod3(msg, lwe_ct_results, lwe_sk, lwe_params);
 
 
     cout << "Actual result: \n" << msg << endl;

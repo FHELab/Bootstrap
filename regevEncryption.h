@@ -47,7 +47,7 @@ void regevEncSK_Value(regevCiphertext& ct, const int msg, const regevSK& sk, con
 void regevEncPK(regevCiphertext& ct, const int& msg, const regevPK& pk, const regevParam& param);
 void regevDec(int& msg, const regevCiphertext& ct, const regevSK& sk, const regevParam& param);
 void regevDec_Mod3(int& msg, const regevCiphertext& ct, const regevSK& sk, const regevParam& param);
-void regevDec_BGV_Mod3(int& msg, const regevCiphertext& ct, const regevSK& sk, const regevParam& param);
+void regevDec_BGV_Mod3(int& msg, const regevCiphertext& ct, const regevSK& sk, const regevParam& param, const uint64_t Qj);
 void regevDec_Value(int& msg, const regevCiphertext& ct, const regevSK& sk, const regevParam& param, const int errorRange);
 
 /////////////////////////////////////////////////////////////////// Below are implementation
@@ -263,27 +263,26 @@ void regevDec_Mod3_Mixed(vector<int>& msg, const vector<regevCiphertext>& ct, co
     }
 }
 
-void regevDec_BGV_Mod3(vector<int>& msg, const vector<regevCiphertext>& ct, const regevSK& sk, const regevParam& param){
+void regevDec_BGV_Mod3(vector<int>& msg, const vector<regevCiphertext>& ct, const regevSK& sk, const regevParam& param, const uint64_t Qj = 1152921504606375937){
     msg.resize(ct.size());
 
     int q = param.q;
     int n = param.n;
-    // cout << n << endl;
     NativeInteger inner(0);
     for (int i = 0; i < (int) ct.size(); i++) {
-        int temp = 0;
+        uint64_t temp = 0;
         for (int j = 0; j < n; j++) {
-            long mul_tmp = (ct[i].a[j].ConvertToInt() * sk[j].ConvertToInt()) % q;
-            mul_tmp = mul_tmp < 0 ? mul_tmp + q : mul_tmp;
-            temp = (temp + (int) mul_tmp) % q;
+            uint64_t mul_tmp = (uint64_t) (((uint128_t) ((uint128_t)ct[i].a[j].ConvertToInt() * (uint128_t)sk[j].ConvertToInt())) % Qj);
+            temp = (temp + mul_tmp) % Qj;
         }
-        temp = (temp + ct[i].b.ConvertToInt()) % q;
-        cout << temp << " ";
-        if (temp % 2 == 1) {
-            msg[i] = 1;
+        temp = (temp + ct[i].b.ConvertToInt()) % Qj;
+        // cout << temp << " ";
+        if ((temp % q) % 2 == 1) {
+            msg[i] = 4;
         } else {
-            msg[i] = 0;
+            msg[i] = 2;
         }
+        // msg[i] = temp % q;
     }
-    cout << endl;
+    // cout << endl;
 }

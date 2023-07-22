@@ -866,14 +866,14 @@ void Bootstrap_RangeCheck_PatersonStockmeyer(Ciphertext& ciphertext, const Ciphe
 
     cout << "Noise after function: " << decryptor.invariant_noise_budget(ciphertext) << " bits\n";
 
-    if (gateEval) { // flip 0 to q/3, q/3 to 0
-        // vector<uint64_t> flip_constant(degree, modulus/3); 
-        // Plaintext flip_pl;
-        plainInd.data()[0] = modulus/3;
-        // batch_encoder.encode(flip_constant, flip_pl);
-        evaluator.negate_inplace(ciphertext);
-        evaluator.add_plain_inplace(ciphertext, plainInd);
-    }
+    // if (gateEval) { // flip 0 to q/3, q/3 to 0
+    //     // vector<uint64_t> flip_constant(degree, modulus/3); 
+    //     // Plaintext flip_pl;
+    //     // plainInd.data()[0] = modulus/3;
+    //     // // batch_encoder.encode(flip_constant, flip_pl);
+    //     // evaluator.negate_inplace(ciphertext);
+    //     // evaluator.add_plain_inplace(ciphertext, plainInd);
+    // }
     
     MemoryManager::SwitchProfile(std::move(old_prof_larger));
 }
@@ -1122,6 +1122,36 @@ vector<regevCiphertext> bootstrap_bigPrime(vector<regevCiphertext>& lwe_ct_list,
     return lwe_ct_results;
 }
 
+vector<regevCiphertext> extractBGV(Ciphertext& bgv_ct, const int ring_dim = poly_modulus_degree_glb, const long t = 4,
+                                   const int n = 4, const uint64_t Qi = prime_p, const uint64_t Qj = 1152921504606375937) {
+    vector<regevCiphertext> results(ring_dim);
+
+    for (int cnt = 0; cnt < ring_dim; cnt++) {
+        results[cnt].a = NativeVector(n);
+        int ind = 0;
+        for (int i = cnt; i >= 0 && ind < n; i--) {
+            uint64_t temp = ((uint64_t) bgv_ct.data(1)[i]) % Qj;
+            // cout << temp << ", ";
+            results[cnt].a[ind] = temp < 0 ? Qj + temp : temp;
+            // cout << results[cnt].a[ind] << endl;
+            ind++;
+        }
+
+        for (int i = ring_dim-1; i > ring_dim - n + cnt && ind < n; i--) {
+            uint64_t temp = ((uint64_t) bgv_ct.data(1)[i]) % Qj;
+            // cout << temp << ", ";
+            results[cnt].a[ind] =  Qj - temp;
+            // cout << results[cnt].a[ind] << endl;
+            ind++;
+        }
+
+        uint64_t temp = ((uint64_t) bgv_ct.data(0)[cnt]) % Qj;
+        results[cnt].b = temp;
+    }
+
+    return results;
+}
+
 vector<regevCiphertext> bootstrap(vector<regevCiphertext>& lwe_ct_list, Ciphertext& lwe_sk_encrypted, const SEALContext& seal_context,
                                   const SEALContext& seal_context_last, const RelinKeys& relin_keys, const GaloisKeys& gal_keys,
                                   const GaloisKeys& gal_keys_coeff, const int ring_dim, const int n, const int p, const KSwitchKeys& ksk,
@@ -1155,13 +1185,13 @@ vector<regevCiphertext> bootstrap(vector<regevCiphertext>& lwe_ct_list, Cipherte
     time_end = chrono::high_resolution_clock::now();
     total_online += chrono::duration_cast<chrono::microseconds>(time_end - time_start).count();
     cout << "TOTAL TIME for evaluation: " << total_online << endl;
-    // cout << "Noise: " << decryptor.invariant_noise_budget(result) << " bits\n";
+    cout << "Noise: " << decryptor.invariant_noise_budget(result) << " bits\n";
 
     Plaintext pl;
     vector<uint64_t> v(ring_dim);
-    // decryptor.decrypt(result, pl);
-    // batch_encoder.decode(pl, v);
-    // cout << "Decrypt after evaluation: \n" << v << endl;
+    decryptor.decrypt(result, pl);
+    batch_encoder.decode(pl, v);
+    cout << "Decrypt after evaluation: \n" << v << endl;
 
     Ciphertext range_check_res;
     time_start = chrono::high_resolution_clock::now();
@@ -1172,9 +1202,9 @@ vector<regevCiphertext> bootstrap(vector<regevCiphertext>& lwe_ct_list, Cipherte
     total_online += chrono::duration_cast<chrono::microseconds>(time_end - time_start).count();
     cout << "TOTAL TIME for rangecheck: " << total_online << endl;
 
-    // decryptor.decrypt(range_check_res, pl);
-    // batch_encoder.decode(pl, v);
-    // cout << "Decrypt after rangeCheck: \n" << v << endl;
+    decryptor.decrypt(range_check_res, pl);
+    batch_encoder.decode(pl, v);
+    cout << "Decrypt after rangeCheck: \n" << v << endl;
 
     ////////////////////////////////////////// SLOT TO COEFFICIENT /////////////////////////////////////////////////////
 
@@ -1209,17 +1239,18 @@ vector<regevCiphertext> bootstrap(vector<regevCiphertext>& lwe_ct_list, Cipherte
 
     time_start = chrono::high_resolution_clock::now();
     // Ciphertext coeff = slotToCoeff(seal_context, seal_context_last, ct_sqrt_list, U_plain_list, gal_keys_coeff, 128, ring_dim);
-    Ciphertext coeff = slotToCoeff_WOPrepreocess(seal_context, seal_context_last, ct_sqrt_list, gal_keys_coeff, 128, ring_dim);
+    Ciphertext coeff = slotToCoeff_WOPrepreocess(seal_context, seal_context_last, ct_sqrt_list, gal_keys_coeff, 128, ring_dim, 65537);
+
     time_end = chrono::high_resolution_clock::now();
     total_online += chrono::duration_cast<chrono::microseconds>(time_end - time_start).count();
     cout << "TOTAL TIME for slotToCoeff: " << total_online << endl;
 
-    // cout << "PLAINTEX OF SLOTTOCOEFF\n";
-    // decryptor.decrypt(coeff, pl);
-    // for (int i = 0; i < ring_dim; i++) {
-    //   cout << pl[i] << ",";
-    // }
-    // cout << endl;
+    cout << "PLAINTEX OF SLOTTOCOEFF\n";
+    decryptor.decrypt(coeff, pl);
+    for (int i = 0; i < ring_dim; i++) {
+      cout << pl[i] << ",";
+    }
+    cout << endl;
 
     ////////////////////////////////////////////////// KEY SWITCHING ///////////////////////////////////////////////////
 
@@ -1236,9 +1267,9 @@ vector<regevCiphertext> bootstrap(vector<regevCiphertext>& lwe_ct_list, Cipherte
 
     evaluator.switch_key_inplace(coeff, *ct_in_iter, static_cast<const KSwitchKeys &>(ksk), 0, my_pool);
 
-    // cout << "Noise before extraction: " << decryptor.invariant_noise_budget(coeff) << " bits\n";
+    cout << "Noise before extraction: " << decryptor.invariant_noise_budget(coeff) << " bits\n";
     
-    vector<regevCiphertext> lwe_ct_results = extractRLWECiphertextToLWECiphertext(coeff);
+    vector<regevCiphertext> lwe_ct_results = extractBGV(coeff);
     time_end = chrono::high_resolution_clock::now();
     total_online += chrono::duration_cast<chrono::microseconds>(time_end - time_start).count();
     cout << "TOTAL TIME for Extraction: " << total_online << endl;
