@@ -1122,8 +1122,44 @@ vector<regevCiphertext> bootstrap_bigPrime(vector<regevCiphertext>& lwe_ct_list,
     return lwe_ct_results;
 }
 
+uint128_t computeDelta(const long c, const long t = 4, const long Qj = 1152921504589938689, const long Qi = prime_p) {
+    return ((-c / t) % (Qj / Qi)) * t;
+}
+
 vector<regevCiphertext> extractBGV(Ciphertext& bgv_ct, const int ring_dim = poly_modulus_degree_glb, const long t = 4,
-                                   const int n = 4, const uint64_t Qi = prime_p, const uint64_t Qj = 1152921504606375937) {
+                                   const int n = 4, const long Qi = prime_p, const long Qj = 1152921504589938689) {
+    vector<regevCiphertext> results(ring_dim);
+
+    for (int cnt = 0; cnt < ring_dim; cnt++) {
+        results[cnt].a = NativeVector(n);
+        int ind = 0;
+        for (int i = cnt; i >= 0 && ind < n; i--) {
+            uint128_t temp = (uint128_t) bgv_ct.data(1)[i];
+            temp = ((uint128_t) (Qi * (temp + computeDelta(temp))) / Qj ) % Qi;
+
+            results[cnt].a[ind] = temp < 0 ? Qi + temp : temp;
+            ind++;
+        }
+
+        for (int i = ring_dim-1; i > ring_dim - n + cnt && ind < n; i--) {
+            uint128_t temp = (uint128_t) bgv_ct.data(1)[i];
+            temp = ((uint128_t) (Qi * (temp + computeDelta(temp))) / Qj ) % Qi;
+
+            results[cnt].a[ind] = -temp < 0 ? Qi - temp : -temp;
+            ind++;
+        }
+
+        uint128_t temp = (uint128_t) bgv_ct.data(0)[cnt];
+        temp = ((uint128_t) (Qi * (temp + computeDelta(temp))) / Qj ) % Qi;
+
+        results[cnt].b = temp % ((int) Qi);
+    }
+
+    return results;
+}
+
+vector<regevCiphertext> extractBGV_noMod(Ciphertext& bgv_ct, const int ring_dim = poly_modulus_degree_glb, const long t = 4,
+                                   const int n = 4, const uint64_t Qi = prime_p, const uint64_t Qj = 1152921504589938689) {
     vector<regevCiphertext> results(ring_dim);
 
     for (int cnt = 0; cnt < ring_dim; cnt++) {
@@ -1147,6 +1183,24 @@ vector<regevCiphertext> extractBGV(Ciphertext& bgv_ct, const int ring_dim = poly
 
         uint64_t temp = ((uint64_t) bgv_ct.data(0)[cnt]) % Qj;
         results[cnt].b = temp;
+    }
+
+    return results;
+}
+
+vector<regevCiphertext> extractBGV_test(vector<regevCiphertext>& original, const int ring_dim = poly_modulus_degree_glb, const long t = 4,
+                                   const int n = 4, const uint64_t Qi = prime_p, const uint64_t Qj = 1152921504589938689) {
+    vector<regevCiphertext> results(ring_dim);
+
+    for (int cnt = 0; cnt < ring_dim; cnt++) {
+        results[cnt].a = NativeVector(n);
+        for (int i = 0; i < n; i++) {
+            uint64_t tmp = original[cnt].a[i].ConvertToInt();
+            results[cnt].a[i] = (uint64_t) ((uint128_t) ((uint128_t)Qi * (uint128_t)(tmp + computeDelta(tmp))) / (uint128_t)Qj ) % (uint128_t)Qi;
+        }
+
+        uint64_t tmp = original[cnt].b.ConvertToInt();
+        results[cnt].b = ((uint128_t) (Qi * (tmp + computeDelta(tmp))) / Qj ) % Qi;
     }
 
     return results;

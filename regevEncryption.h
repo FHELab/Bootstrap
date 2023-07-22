@@ -263,7 +263,7 @@ void regevDec_Mod3_Mixed(vector<int>& msg, const vector<regevCiphertext>& ct, co
     }
 }
 
-void regevDec_BGV_Mod3(vector<int>& msg, const vector<regevCiphertext>& ct, const regevSK& sk, const regevParam& param, const uint64_t Qj = 1152921504606375937){
+void regevDec_BGV_Mod_noMod(vector<int>& msg, const vector<regevCiphertext>& ct, const regevSK& sk, const regevParam& param, const uint64_t Qj = 1152921504589938689){
     msg.resize(ct.size());
 
     int q = param.q;
@@ -277,12 +277,36 @@ void regevDec_BGV_Mod3(vector<int>& msg, const vector<regevCiphertext>& ct, cons
         }
         temp = (temp + ct[i].b.ConvertToInt()) % Qj;
         // cout << temp << " ";
-        if ((temp % q) % 2 == 1) {
-            msg[i] = 4;
+        if ((temp % q) % 4 == 0) {
+            msg[i] = 0;
         } else {
-            msg[i] = 2;
+            msg[i] = 4;
         }
         // msg[i] = temp % q;
     }
     // cout << endl;
+}
+void regevDec_BGV_Mod3(vector<int>& msg, const vector<regevCiphertext>& ct, const regevSK& sk, const regevParam& param){
+    msg.resize(ct.size());
+
+    int q = param.q;
+    int n = param.n;
+    NativeInteger inner(0);
+    for (int i = 0; i < (int) ct.size(); i++) {
+        uint64_t temp = 0;
+        for (int j = 0; j < n; j++) {
+            uint64_t mul_tmp = (ct[i].a[j].ConvertToInt() * sk[j].ConvertToInt()) % q;
+            temp = (temp + mul_tmp) % q;
+        }
+        temp = (temp + ct[i].b.ConvertToInt()) % q;
+        if (i < 4) cout << temp << " ";
+        // if (temp % 4 == 0) {
+        //     msg[i] = 0;
+        // } else {
+        //     msg[i] = 4;
+        // }
+        msg[i] = temp;
+        // msg[i] = temp % q;
+    }
+    cout << endl;
 }
