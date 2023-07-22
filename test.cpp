@@ -10,41 +10,41 @@ using namespace seal;
 using namespace std;
 
 
-// uint128_t computeDelta(const long c, const long t = 4, const long Qj = 140737488355201, const long Qi = prime_p) {
-//     return ((-c / t) % (Qj / Qi)) * t;
-// }
+uint128_t computeDelta(const long c, const long t = 4, const long Qj = 140737488355201, const long Qi = prime_p) {
+    return ((-c / t) % (Qj / Qi)) * t;
+}
 
-// vector<regevCiphertext> extractBGV(Ciphertext& bgv_ct, const int ring_dim = poly_modulus_degree_glb, const long t = 4,
-//                                    const int n = 4, const long Qi = prime_p, const long Qj = 1152921504606837793) {
-//     vector<regevCiphertext> results(ring_dim);
+vector<regevCiphertext> extractBGV(Ciphertext& bgv_ct, const int ring_dim = poly_modulus_degree_glb, const long t = 4,
+                                   const int n = 4, const long Qi = prime_p, const long Qj = 1152921504606837793) {
+    vector<regevCiphertext> results(ring_dim);
 
-//     for (int cnt = 0; cnt < ring_dim; cnt++) {
-//         results[cnt].a = NativeVector(n);
-//         int ind = 0;
-//         for (int i = cnt; i >= 0 && ind < n; i--) {
-//             uint128_t temp = (uint128_t) bgv_ct.data(1)[i];
-//             temp = ((uint128_t) (Qi * (temp + computeDelta(temp))) / Qj ) % Qi;
+    for (int cnt = 0; cnt < ring_dim; cnt++) {
+        results[cnt].a = NativeVector(n);
+        int ind = 0;
+        for (int i = cnt; i >= 0 && ind < n; i--) {
+            uint128_t temp = (uint128_t) bgv_ct.data(1)[i];
+            temp = ((uint128_t) (Qi * (temp + computeDelta(temp))) / Qj ) % Qi;
 
-//             results[cnt].a[ind] = temp < 0 ? Qi + temp : temp;
-//             ind++;
-//         }
+            results[cnt].a[ind] = temp < 0 ? Qi + temp : temp;
+            ind++;
+        }
 
-//         for (int i = ring_dim-1; i > ring_dim - n + cnt && ind < n; i--) {
-//             uint128_t temp = (uint128_t) bgv_ct.data(1)[i];
-//             temp = ((uint128_t) (Qi * (temp + computeDelta(temp))) / Qj ) % Qi;
+        for (int i = ring_dim-1; i > ring_dim - n + cnt && ind < n; i--) {
+            uint128_t temp = (uint128_t) bgv_ct.data(1)[i];
+            temp = ((uint128_t) (Qi * (temp + computeDelta(temp))) / Qj ) % Qi;
 
-//             results[cnt].a[ind] = -temp < 0 ? Qi - temp : -temp;
-//             ind++;
-//         }
+            results[cnt].a[ind] = -temp < 0 ? Qi - temp : -temp;
+            ind++;
+        }
 
-//         uint128_t temp = (uint128_t) bgv_ct.data(0)[cnt];
-//         temp = ((uint128_t) (Qi * (temp + computeDelta(temp))) / Qj ) % Qi;
+        uint128_t temp = (uint128_t) bgv_ct.data(0)[cnt];
+        temp = ((uint128_t) (Qi * (temp + computeDelta(temp))) / Qj ) % Qi;
 
-//         results[cnt].b = temp % ((int) Qi);
-//     }
+        results[cnt].b = temp % ((int) Qi);
+    }
 
-//     return results;
-// }
+    return results;
+}
 
 
 
