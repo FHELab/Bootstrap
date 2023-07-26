@@ -20,9 +20,9 @@ int main() {
 
     EncryptionParameters bfv_params(scheme_type::bfv);
     bfv_params.set_poly_modulus_degree(ring_dim);
-    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 55, 28, 60, 60,
-                                                          60, 60, 60, 60, 60,
-                                                          50, 60 });
+    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 55, 60,
+                                                          60, 60, 60,
+                                                          60, 50, 60 });
     bfv_params.set_coeff_modulus(coeff_modulus);
     bfv_params.set_plain_modulus(p);
 
@@ -123,8 +123,8 @@ int main() {
 
 
     /////////////////////////////////////////////////// BOOTSTRAP //////////////////////////////////////////////////////
-    bool gateEval = true;
-    int f_zero = 0;
+    bool gateEval = true, skipOdd = false;
+    int f_zero = 21845;
 
     // NAND
     // vector<uint64_t> q_shift_constant_NAND(ring_dim, -p/6);
@@ -153,17 +153,15 @@ int main() {
     // XNOR, XOR --> -p/6+p/3 = p/6
     vector<uint64_t> q_shift_constant(ring_dim, 0);
     for (int i = 0; i < ring_dim; i++) {
-        if (i < ring_dim/3) {
-            q_shift_constant[i] = 5*p/6;
-        } else if (i < 2*ring_dim/3) {
-            q_shift_constant[i] = p/2;
+        if (i < 2*ring_dim/3) {
+            q_shift_constant[i] = 2*p/3;
         } else {
-            q_shift_constant[i] = p/6;
+            q_shift_constant[i] = p/3;
         }
     }
     vector<regevCiphertext> lwe_ct_results = bootstrap(lwe_ct_list, lwe_sk_encrypted, seal_context, seal_context_last, relin_keys, gal_keys, gal_keys_coeff,
-                                                       ring_dim, n, p, ksk, rangeCheckIndices_gateEvaluation, my_pool, bfv_secret_key, q_shift_constant,
-                                                       f_zero, gateEval);
+                                                       ring_dim, n, p, ksk, fastRangeCheckIndices_gateEvaluation, my_pool, bfv_secret_key, q_shift_constant,
+                                                       f_zero, gateEval, skipOdd, 19, 20);
     regevDec_Mod3_Mixed(msg, lwe_ct_results, lwe_sk, lwe_params);
 
 

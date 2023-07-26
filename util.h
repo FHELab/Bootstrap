@@ -478,7 +478,7 @@ Ciphertext slotToCoeff_WOPrepreocess(const SEALContext& context, const SEALConte
 }
 
 // bootstrap rangecheck function that calculate a poly given error bound, and no care for input outside domain
-void Bootstrap_FastRangeCheck_Random(SecretKey& bfv_secret_key, Ciphertext& output, const Ciphertext& input, const size_t& degree, const RelinKeys &relin_keys,
+void Bootstrap_FastRangeCheck_Random(const SecretKey& bfv_secret_key, Ciphertext& output, const Ciphertext& input, const size_t& degree, const RelinKeys &relin_keys,
                                      const SEALContext& context, const vector<uint64_t>& rangeCheckIndices, const int firstLevel, const int secondLevel,
                                      map<int, bool>& firstLevelMod, map<int, bool>& secondLevelMod, const int f_zero = 0) {
     MemoryPoolHandle my_pool_larger = MemoryPoolHandle::New(true);
@@ -487,7 +487,6 @@ void Bootstrap_FastRangeCheck_Random(SecretKey& bfv_secret_key, Ciphertext& outp
     Evaluator evaluator(context);
     BatchEncoder batch_encoder(context);
     Decryptor decryptor(context, bfv_secret_key);
-
     vector<Ciphertext> kCTs(firstLevel), kToMCTs(secondLevel);
 
     calUptoDegreeK_bigPrime(kCTs, input, firstLevel, relin_keys, context, firstLevelMod);
@@ -782,30 +781,19 @@ void Bootstrap_RangeCheck_PatersonStockmeyer(Ciphertext& ciphertext, const Ciphe
     Decryptor decryptor(context, bfv_secret_key);
     Evaluator evaluator(context);
     BatchEncoder batch_encoder(context);
-    vector<Ciphertext> kCTs(firstDegree);
-    calUptoDegreeK(kCTs, input, firstDegree, relin_keys, context, skip_first_odd);
+    vector<Ciphertext> kCTs(firstDegree), kToMCTs(secondDegree);
 
-    vector<Ciphertext> kToMCTs(secondDegree);
+    calUptoDegreeK(kCTs, input, firstDegree, relin_keys, context, skip_first_odd);
     calUptoDegreeK(kToMCTs, kCTs[kCTs.size()-1], secondDegree, relin_keys, context);
 
-    // if (gateEval) {
-    //     for (int i = 0; i < 3; i++) {
-    //         for (int j = 0; j < (int) kCTs.size(); j++) {
-    //             evaluator.mod_switch_to_next_inplace(kCTs[j]);
-    //         }
-    //     }
-    // } else {
-        for (int j = 0; j < (int) kCTs.size(); j++) {
-            evaluator.mod_switch_to_inplace(kCTs[j], kToMCTs[kToMCTs.size()-1].parms_id());
-        }
-        for (int j = 0; j < (int) kToMCTs.size(); j++) {
-            evaluator.mod_switch_to_next_inplace(kToMCTs[j]);
-        }
-    // }
-    // cout << "Noise for last: " << decryptor.invariant_noise_budget(kToMCTs[kToMCTs.size()-1]) << " bits\n";
+    for (int j = 0; j < (int) kCTs.size(); j++) {
+        evaluator.mod_switch_to_inplace(kCTs[j], kToMCTs[kToMCTs.size()-1].parms_id());
+    }
+    for (int j = 0; j < (int) kToMCTs.size(); j++) {
+        evaluator.mod_switch_to_next_inplace(kToMCTs[j]);
+    }
 
     Ciphertext temp_relin(context);
-    // int third = 0;
     
     Plaintext plainInd;
     plainInd.resize(degree);
@@ -819,9 +807,7 @@ void Bootstrap_RangeCheck_PatersonStockmeyer(Ciphertext& ciphertext, const Ciphe
         bool flag = false;
         for(int j = 0; j < firstDegree; j++) {
             if(rangeCheckIndices[i*firstDegree+j] != 0) {
-                // vector<uint64_t> intInd(degree, rangeCheckIndices[i*firstDegree+j]);
                 plainInd.data()[0] = rangeCheckIndices[i*firstDegree+j];
-                // batch_encoder.encode(intInd, plainInd);
                 if (!flag) {
                     evaluator.multiply_plain(kCTs[j], plainInd, levelSum);
                     flag = true;
@@ -833,7 +819,6 @@ void Bootstrap_RangeCheck_PatersonStockmeyer(Ciphertext& ciphertext, const Ciphe
             }
         }
         evaluator.mod_switch_to_inplace(levelSum, kToMCTs[i].parms_id()); // mod down the plaintext multiplication noise
-        // time_start = chrono::high_resolution_clock::now();
         if(i == 0) {
             ciphertext = levelSum;
         } else if (i == 1) { // initialize for temp_relin, which is of ct size = 3
@@ -842,8 +827,6 @@ void Bootstrap_RangeCheck_PatersonStockmeyer(Ciphertext& ciphertext, const Ciphe
             evaluator.multiply_inplace(levelSum, kToMCTs[i - 1]);
             evaluator.add_inplace(temp_relin, levelSum);
         }
-        // time_end = chrono::high_resolution_clock::now();
-        // third += chrono::duration_cast<chrono::microseconds>(time_end - time_start).count();
     }
     
     for(int i = 0; i < firstDegree; i++){
@@ -857,20 +840,15 @@ void Bootstrap_RangeCheck_PatersonStockmeyer(Ciphertext& ciphertext, const Ciphe
     evaluator.add_inplace(ciphertext, temp_relin);
     temp_relin.release();
 
-    // vector<uint64_t> intInd(degree, f_zero); 
-    // Plaintext plainInd;
+
     plainInd.data()[0] = f_zero;
-    // batch_encoder.encode(intInd, plainInd);
     evaluator.negate_inplace(ciphertext);
     evaluator.add_plain_inplace(ciphertext, plainInd);
 
     cout << "Noise after function: " << decryptor.invariant_noise_budget(ciphertext) << " bits\n";
 
     if (gateEval) { // flip 0 to q/3, q/3 to 0
-        // vector<uint64_t> flip_constant(degree, modulus/3); 
-        // Plaintext flip_pl;
         plainInd.data()[0] = modulus/3;
-        // batch_encoder.encode(flip_constant, flip_pl);
         evaluator.negate_inplace(ciphertext);
         evaluator.add_plain_inplace(ciphertext, plainInd);
     }
@@ -1165,9 +1143,15 @@ vector<regevCiphertext> bootstrap(vector<regevCiphertext>& lwe_ct_list, Cipherte
 
     Ciphertext range_check_res;
     time_start = chrono::high_resolution_clock::now();
-    Bootstrap_RangeCheck_PatersonStockmeyer(range_check_res, result, rangeCheckIndices, p, ring_dim,
-                                            relin_keys, seal_context, bfv_secret_key, f_zero, gateEval, skip_first_odd,
-                                            firstDegree, secondDegree);
+    if (gateEval) {
+        map<int, bool> modDownIndices = {{4, false}, {16, false}};
+        Bootstrap_FastRangeCheck_Random(bfv_secret_key, range_check_res, result, ring_dim, relin_keys, seal_context, rangeCheckIndices,
+                                        firstDegree, secondDegree, modDownIndices, modDownIndices, f_zero);
+    } else {
+        Bootstrap_RangeCheck_PatersonStockmeyer(range_check_res, result, rangeCheckIndices, p, ring_dim,
+                                                relin_keys, seal_context, bfv_secret_key, f_zero, gateEval, skip_first_odd,
+                                                firstDegree, secondDegree);
+    }
     time_end = chrono::high_resolution_clock::now();
     total_online += chrono::duration_cast<chrono::microseconds>(time_end - time_start).count();
     cout << "TOTAL TIME for rangecheck: " << total_online << endl;
@@ -1185,6 +1169,10 @@ vector<regevCiphertext> bootstrap(vector<regevCiphertext>& lwe_ct_list, Cipherte
     // cout << "Noise after range check: " << decryptor.invariant_noise_budget(range_check_res) << " bits\n";
 
     time_start = chrono::high_resolution_clock::now();
+    while(seal_context.last_parms_id() != range_check_res.parms_id()){
+        evaluator.mod_switch_to_next_inplace(range_check_res);
+    }
+
     Ciphertext range_check_res_copy(range_check_res);
 
     Evaluator eval_coeff(seal_context_last);
@@ -1224,9 +1212,6 @@ vector<regevCiphertext> bootstrap(vector<regevCiphertext>& lwe_ct_list, Cipherte
     ////////////////////////////////////////////////// KEY SWITCHING ///////////////////////////////////////////////////
 
     time_start = chrono::high_resolution_clock::now();
-    while(seal_context.last_parms_id() != coeff.parms_id()){
-        evaluator.mod_switch_to_next_inplace(coeff);
-    }
     // cout << "Noise before key switch: " << decryptor.invariant_noise_budget(coeff) << " bits\n";
 
     Ciphertext copy_coeff = coeff;
