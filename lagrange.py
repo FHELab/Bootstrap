@@ -11,12 +11,22 @@ x = symbols('x')
 xs = []
 ys = []
 
-for i in range(-63, 64):
-   xs.append(i)
-   ys.append(0)
-for i in range(32705, 32832):
-   xs.append(i)
-   ys.append(32768)
+xo = [57004, 46969, 21931, 39030, 59092, 9965, 30013, 58301]
+yo = [51237, 63408, 61771, 29236, 28266, 35197, 57032, 60306]
+# xo = [57004]
+# yo = [51237]
+
+for i in range(len(xo)):
+   for x_val in range(xo[i]-63, xo[i]+64):
+      xs.append(x_val)
+      ys.append(yo[i])
+
+# for i in range(-63, 64):
+#    xs.append(i)
+#    ys.append(0)
+# for i in range(32705, 32832):
+#    xs.append(i)
+#    ys.append(32768)
 
 
 def power(x, y, m):
@@ -47,6 +57,7 @@ def eval_poly(lst, x):
 def lagrange_interpolate(xs, ys):
     coeff = None
     for i in range(len(xs)):
+        print(i)
         if ys[i] != 0:
             tmp_poly = 1
             tmp_factor = 1
@@ -74,7 +85,7 @@ coeff = lagrange_interpolate(xs, ys)
 
 
 for i in range(len(xs)):
-  print(eval_poly(coeff[::-1], xs[i]) % 65537, ys[i])
+  print(xs[i], eval_poly(coeff[::-1], xs[i]) % 65537, ys[i])
 
 
 print(coeff)

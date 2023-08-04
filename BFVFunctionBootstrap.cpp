@@ -16,15 +16,16 @@ int main() {
     int ring_dim = poly_modulus_degree_glb;
     int n = 1024;
     map<int, bool> modDownIndices_1 = {{4, false}, {16, false}};
-    map<int, bool> modDownIndices_2 = {{4, false}, {16, false}};
-    BootstrapParam bootstrap_param = BootstrapParam(65537, 128, 512, 16, 32);
+    map<int, bool> modDownIndices_2 = {{4, false}, {16, false}, {32, false}};
+    BootstrapParam bootstrap_param = BootstrapParam(65537, 128, 512, 32, 32);
     int p = bootstrap_param.ciphertextSpacePrime;
-    int f_zero = 32768;
+    int f_zero = 25877;
+    vector<uint64_t> rangeCheckIndices = fastRangeCheckIndices_63_8points;
 
     EncryptionParameters bfv_params(scheme_type::bfv);
     bfv_params.set_poly_modulus_degree(ring_dim);
 
-    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 30, 60,
+    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 30, 60, 60,
                                                           60, 60, 60,
                                                           50, 60 });
     bfv_params.set_coeff_modulus(coeff_modulus);
@@ -226,7 +227,7 @@ int main() {
     s = chrono::high_resolution_clock::now();
 
     Ciphertext range_check_res;
-    Bootstrap_FastRangeCheck_Random(bfv_secret_key, range_check_res, eval_result, ring_dim, relin_keys, seal_context, fastRangeCheckIndices_127_twoRange,
+    Bootstrap_FastRangeCheck_Random(bfv_secret_key, range_check_res, eval_result, ring_dim, relin_keys, seal_context, rangeCheckIndices,
                                     bootstrap_param.firstLevelDegree, bootstrap_param.secondLevelDegree, modDownIndices_1, modDownIndices_2, f_zero);
 
 
