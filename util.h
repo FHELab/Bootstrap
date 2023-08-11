@@ -651,9 +651,9 @@ void Bootstrap_FastRangeCheck_Condition(SecretKey& bfv_secret_key, Ciphertext& o
     for (int j = 0; j < (int) kCTs.size(); j++) {
         evaluator.mod_switch_to_inplace(kCTs[j], kToMCTs[kToMCTs.size()-1].parms_id());
     }
-    for (int j = 0; j < (int) kToMCTs.size(); j++) {
-        evaluator.mod_switch_to_next_inplace(kToMCTs[j]);
-    }
+    // for (int j = 0; j < (int) kToMCTs.size(); j++) {
+    //     evaluator.mod_switch_to_next_inplace(kToMCTs[j]);
+    // }
 
     Ciphertext temp_relin(context);
 

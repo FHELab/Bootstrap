@@ -26,7 +26,7 @@ int main() {
     EncryptionParameters bfv_params(scheme_type::bfv);
     bfv_params.set_poly_modulus_degree(ring_dim);
 
-    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 60,
+    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 60, 60,
                                                           60, 60, 60, 60, 60, 60, 60, 
                                                           60, 60, 60, 50, 60 });
 
@@ -142,7 +142,7 @@ int main() {
         evaluator.transform_to_ntt_inplace(sk_sqrt_list[i]);
     }
 
-    for (int i = 0; i < 12; i++) {
+    for (int i = 0; i < 13; i++) {
         evaluator.mod_switch_to_next_inplace(bfv_input);
     }
     cout << "... prepared bfv input ciphertext nearly out of noise budget ...\n";
