@@ -15,22 +15,20 @@ int main() {
     ////////////////////////////////////////////// PREPARE (R)LWE PARAMS ///////////////////////////////////////////////
     int ring_dim = poly_modulus_degree_glb;
     int n = 1024;
-    BootstrapParam bootstrap_param = BootstrapParam(prime_p, 192, 4096, 16, 16, 256*3, 1024);
+    BootstrapParam bootstrap_param = BootstrapParam(prime_p, 128, 512, 16, 16, 256, 256);
     int p = bootstrap_param.ciphertextSpacePrime;
-    int sq_ct = 128, sq_rt = 256; // 32768 = 128*256, divide into 128 share, and each has 256 slots to calculate
-    map<int, bool> eval_mod1 = {{4, false}, {16, false}};
-    map<int, bool> eval_mod2 = {{4, false}, {16, false}};
+    int sq_ct = 128, sq_rt = 128; // 32768 = 128*256, divide into 128 share, and each has 256 slots to calculate
+    map<int, bool> eval_mod = {{2, false}, {8, false}};
 
-    map<int, bool> raise_mod1 = {{2, false}, {8, false}, {32, false}, {128, false}, {512, false}};
-    map<int, bool> raise_mod2 = {{2, false}, {8, false}, {32, false}, {64, false}, {128, false}, {512, false}};
+    map<int, bool> raise_mod = {{2, false}, {8, false}, {32, false}, {128, false}};
 
 
     EncryptionParameters bfv_params(scheme_type::bfv);
     bfv_params.set_poly_modulus_degree(ring_dim);
 
-    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 30, 60, 60, 60, 60, 60,
-                                                          60, 60, 60, 60, 60, 60,
-                                                          60, 60, 60, 60, 50, 60 });
+    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 60,
+                                                          60, 60, 60, 60, 60, 60, 60, 
+                                                          60, 60, 60, 50, 60 });
 
     bfv_params.set_coeff_modulus(coeff_modulus);
     bfv_params.set_plain_modulus(p);
@@ -235,9 +233,9 @@ int main() {
     s = chrono::high_resolution_clock::now();
 
     Ciphertext range_check_res;
-    Bootstrap_FastRangeCheck_Condition(bfv_secret_key, range_check_res, eval_result, ring_dim, relin_keys, seal_context, fastRangeCheckIndices_127_bigPrime, 
-                                        bootstrap_param.firstLevelDegree, bootstrap_param.secondLevelDegree, eval_mod1, eval_mod2, bootstrap_param.raisePower_firstLevel,
-                                        bootstrap_param.raisePower_secondLevel, raise_mod1, raise_mod2);
+    Bootstrap_FastRangeCheck_Condition(bfv_secret_key, range_check_res, eval_result, ring_dim, relin_keys, seal_context, fastRangeCheckIndices_127,
+                                        bootstrap_param.firstLevelDegree, bootstrap_param.secondLevelDegree, eval_mod, eval_mod, bootstrap_param.raisePower_firstLevel,
+                                        bootstrap_param.raisePower_secondLevel, raise_mod, raise_mod);
 
     e = chrono::high_resolution_clock::now();
     cout << "Bootstrap_FastRangeCheck_Condition: " << chrono::duration_cast<chrono::microseconds>(e - s).count() << endl;

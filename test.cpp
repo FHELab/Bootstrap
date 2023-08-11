@@ -23,9 +23,9 @@ int main() {
 
     EncryptionParameters bfv_params(scheme_type::bfv);
     bfv_params.set_poly_modulus_degree(ring_dim);
-    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 30, 60, 60, 60, 60, 60,
-                                                          60, 60, 60, 60, 60, 60,
-                                                          60, 60, 60, 60, 50, 60 });
+    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 60, 60,
+                                                          60, 60, 60, 60, 60, 60, 60, 60, 60, 50,
+                                                          60 });
     bfv_params.set_coeff_modulus(coeff_modulus);
     bfv_params.set_plain_modulus(p);
 
@@ -96,34 +96,58 @@ int main() {
     // vector<uint64_t> msg = {0, 21845, 32768, 43490, 10922, 30000, 50000, 20000};
     vector<uint64_t> msg(ring_dim);
     for (int i = 0; i < ring_dim; i++) {
-        msg[i] = (i % 2 == 0)? 10 : 10000;
+        msg[i] = (i % 8) * 8111;
         // msg[i] = 2;
     } //= {0, 21845, 32768, 43490, 10922, 30000, 50000, 20000};
     Plaintext pl;
-    Ciphertext c;
+    Ciphertext c1;
     batch_encoder.encode(msg, pl);
-    encryptor.encrypt(pl, c);
+    encryptor.encrypt(pl, c1);
+
+    cout << decryptor.invariant_noise_budget(c1) << " bits\n";
+    // map<int, bool> raise_mod1 = {{2, false}, {8, false}, {32, false}, {128, false}, {512, false}};
+    map<int, bool> raise_mod = {{2, false}, {8, false}, {32, false}, {128, false}, {512, false}};
+    Ciphertext output = raisePowerToPrime(seal_context, relin_keys, c1, raise_mod, raise_mod, 256, 256, p);
+
+    decryptor.decrypt(output, pl);
+    batch_encoder.decode(pl, msg);
+    cout << "MSG ----------------\n" << msg << endl;
+    cout << decryptor.invariant_noise_budget(output) << " bits\n";
+
+
+    // while(seal_context.last_parms_id() != output.parms_id()){
+        evaluator.mod_switch_to_next_inplace(output);
+    // }
+    cout << decryptor.invariant_noise_budget(output) << " bits\n";
+
+
+
+
+
+
+
+
 
 
 
 
     ///////////// TEST NEW RANGE CHECK /////////////////////
-    Ciphertext output;
+    // Ciphertext output;
 
-    map<int, bool> modDownIndices_1 = {{4, false}, {12, false}};
-    map<int, bool> modDownIndices_2 = {{4, false}, {16, false}};
+    // map<int, bool> modDownIndices_1 = {{4, false}, {12, false}};
+    // map<int, bool> modDownIndices_2 = {{4, false}, {16, false}};
     
-    chrono::high_resolution_clock::time_point time_start, time_end;
-    time_start = chrono::high_resolution_clock::now();
-    Bootstrap_FastRangeCheck_Condition(bfv_secret_key, output, c, poly_modulus_degree_glb, relin_keys, seal_context, fastRangeCheckIndices_63_bigPrime,
-                                       8, 16, modDownIndices_1, modDownIndices_2, 256, 256, modDownIndices_1, modDownIndices_1);
-    time_end = chrono::high_resolution_clock::now();
-    cout << "time: " << chrono::duration_cast<chrono::microseconds>(time_end - time_start).count() << endl;
-    cout << decryptor.invariant_noise_budget(output) << " bits\n";
+    // chrono::high_resolution_clock::time_point time_start, time_end;
+    // time_start = chrono::high_resolution_clock::now();
+    // Bootstrap_FastRangeCheck_Condition(bfv_secret_key, output, c, poly_modulus_degree_glb, relin_keys, seal_context, fastRangeCheckIndices_63_bigPrime,
+    //                                    8, 16, modDownIndices_1, modDownIndices_2, 256, 256, modDownIndices_1, modDownIndices_1);
+    // time_end = chrono::high_resolution_clock::now();
+    // cout << "time: " << chrono::duration_cast<chrono::microseconds>(time_end - time_start).count() << endl;
+    // cout << decryptor.invariant_noise_budget(output) << " bits\n";
 
-    decryptor.decrypt(output, pl);
-    batch_encoder.decode(pl, msg);
-    cout << "MSG ----------------\n" << msg << endl;
+    // decryptor.decrypt(output, pl);
+    // batch_encoder.decode(pl, msg);
+    // cout << "MSG ----------------\n" << msg << endl;
 
 
 

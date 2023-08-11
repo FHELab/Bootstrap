@@ -554,39 +554,75 @@ void Bootstrap_FastRangeCheck_Random(const SecretKey& bfv_secret_key, Ciphertext
     MemoryManager::SwitchProfile(std::move(old_prof_larger));
 }
 
-Ciphertext raisePowerToPrime(const SEALContext& context, const RelinKeys &relin_keys, Ciphertext& x, int prime = prime_p) {
-    Ciphertext output;
-    bool init_flag = false;
-    bool mod_down = false;
+Ciphertext calculateDegree(const SEALContext& context, const RelinKeys &relin_keys, Ciphertext& input, map<int, bool> modDownIndices, int degree) {
     Evaluator evaluator(context);
 
-    prime = prime / 2;
+    vector<Ciphertext> output(degree);
+    output[0] = input;
+    vector<int> calculated(degree, 0), numMod(degree, 0);
+    calculated[0] = 1;
 
-    while (prime) {
-        evaluator.square_inplace(x);
-        evaluator.relinearize_inplace(x, relin_keys);
-        if (!mod_down) {
-            mod_down = true;
-        } else {
-            evaluator.mod_switch_to_next_inplace(x);
-            mod_down = false;
-        }
+    Ciphertext res, base;
 
-        if (prime % 2) {
-            if (!init_flag) {
-                output = x;
-                init_flag = true;
+    auto toCalculate = degree;
+    int resdeg = 0;
+    int basedeg = 1;
+    base = input;
+    while(toCalculate > 0){
+        if(toCalculate & 1){
+            toCalculate -= 1;
+            resdeg += basedeg;
+            if(calculated[resdeg-1] != 0){
+                res = output[resdeg - 1];
             } else {
-                evaluator.mod_switch_to_inplace(output, x.parms_id());
-                evaluator.multiply_inplace(output, x);
-                evaluator.relinearize_inplace(x, relin_keys);
+                if(resdeg == basedeg){
+                    res = base; // should've never be used as base should have made calculated[basedeg-1]
+                } else {
+                    numMod[resdeg-1] = numMod[basedeg-1];
+
+                    evaluator.mod_switch_to_inplace(res, base.parms_id()); // match modulus
+                    evaluator.multiply_inplace(res, base);
+                    evaluator.relinearize_inplace(res, relin_keys);
+                    if(modDownIndices.count(resdeg) && !modDownIndices[resdeg]) {
+                        modDownIndices[resdeg] = true;
+                        evaluator.mod_switch_to_next_inplace(res);
+                        numMod[resdeg-1]+=1;
+                    }
+                }
+                output[resdeg-1] = res;
+                calculated[resdeg-1] += 1;
+            }
+        } else {
+            toCalculate /= 2;
+            basedeg *= 2;
+            if(calculated[basedeg-1] != 0){
+                base = output[basedeg - 1];
+            } else {
+                numMod[basedeg-1] = numMod[basedeg/2-1];
+                evaluator.square_inplace(base);
+                evaluator.relinearize_inplace(base, relin_keys);
+                while(modDownIndices.count(basedeg) && !modDownIndices[basedeg]) {
+                    modDownIndices[basedeg] = true;
+                    evaluator.mod_switch_to_next_inplace(base);
+                    numMod[basedeg-1]+=1;
+                }
+                output[basedeg-1] = base;
+                calculated[basedeg-1] += 1;
             }
         }
-        prime = prime / 2;
     }
-    cout << endl;
 
-    return output;
+    return output[output.size()-1];
+}
+
+
+Ciphertext raisePowerToPrime(const SEALContext& context, const RelinKeys &relin_keys, Ciphertext& input, map<int, bool> modDownIndices_1, map<int, bool> modDownIndices_2,
+                             int degree_1, int degree_2, int prime = prime_p) {
+
+    Ciphertext tmp = calculateDegree(context, relin_keys, input, modDownIndices_1, degree_1);
+    tmp = calculateDegree(context, relin_keys, tmp, modDownIndices_2, degree_2);
+
+    return tmp;
 }
 
 
@@ -670,9 +706,7 @@ void Bootstrap_FastRangeCheck_Condition(SecretKey& bfv_secret_key, Ciphertext& o
     cout << "   first evaluation half: " << chrono::duration_cast<chrono::microseconds>(time_end - time_start).count() << endl;
 
     time_start = chrono::high_resolution_clock::now();
-
-    output = raisePowerToPrime(context, relin_keys, output, prime_p);
-
+    output = raisePowerToPrime(context, relin_keys, output, raise_mod1, raise_mod2, raise_level1, raise_level2, prime_p);
     time_end = chrono::high_resolution_clock::now();
     cout << "   second raise power half: " << chrono::duration_cast<chrono::microseconds>(time_end - time_start).count() << endl;
 
