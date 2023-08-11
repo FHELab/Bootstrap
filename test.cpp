@@ -96,8 +96,8 @@ int main() {
     // vector<uint64_t> msg = {0, 21845, 32768, 43490, 10922, 30000, 50000, 20000};
     vector<uint64_t> msg(ring_dim);
     for (int i = 0; i < ring_dim; i++) {
-        msg[i] = (i % 8) * 8111;
-        // msg[i] = 2;
+        // msg[i] = (i % 8) * 8111;
+        msg[i] = 57004;
     } //= {0, 21845, 32768, 43490, 10922, 30000, 50000, 20000};
     Plaintext pl;
     Ciphertext c1;
@@ -106,19 +106,26 @@ int main() {
 
     cout << decryptor.invariant_noise_budget(c1) << " bits\n";
     // map<int, bool> raise_mod1 = {{2, false}, {8, false}, {32, false}, {128, false}, {512, false}};
-    map<int, bool> raise_mod = {{2, false}, {8, false}, {32, false}, {128, false}, {512, false}};
-    Ciphertext output = raisePowerToPrime(seal_context, relin_keys, c1, raise_mod, raise_mod, 256, 256, p);
+    // map<int, bool> raise_mod = {{2, false}, {8, false}, {32, false}, {128, false}, {512, false}};
+    // Ciphertext output = raisePowerToPrime(seal_context, relin_keys, c1, raise_mod, raise_mod, 256, 256, p);
 
-    decryptor.decrypt(output, pl);
+    // decryptor.decrypt(output, pl);
+    // batch_encoder.decode(pl, msg);
+    // cout << "MSG ----------------\n" << msg << endl;
+    // cout << decryptor.invariant_noise_budget(output) << " bits\n";
+
+
+
+
+    Ciphertext scaled;
+    Bootstrap_RangeCheck_PatersonStockmeyer(scaled, c1, fastRangeCheckIndices_63_8points_pre, p, ring_dim, relin_keys, seal_context, bfv_secret_key, 
+                                            4257, false, false, 32, 32);
+
+
+    decryptor.decrypt(scaled, pl);
     batch_encoder.decode(pl, msg);
     cout << "MSG ----------------\n" << msg << endl;
-    cout << decryptor.invariant_noise_budget(output) << " bits\n";
-
-
-    // while(seal_context.last_parms_id() != output.parms_id()){
-        evaluator.mod_switch_to_next_inplace(output);
-    // }
-    cout << decryptor.invariant_noise_budget(output) << " bits\n";
+    cout << decryptor.invariant_noise_budget(scaled) << " bits\n";
 
 
 
@@ -130,8 +137,7 @@ int main() {
 
 
 
-
-    ///////////// TEST NEW RANGE CHECK /////////////////////
+    // /////////// TEST NEW RANGE CHECK /////////////////////
     // Ciphertext output;
 
     // map<int, bool> modDownIndices_1 = {{4, false}, {12, false}};

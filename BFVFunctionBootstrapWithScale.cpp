@@ -144,13 +144,19 @@ int main() {
 
 
     ///////////////////////// scale first before extraction
+    chrono::high_resolution_clock::time_point time_start, time_end, s, e;
+
+    time_start = chrono::high_resolution_clock::now();
+    s = chrono::high_resolution_clock::now();
     Ciphertext scaled;
     Bootstrap_RangeCheck_PatersonStockmeyer(scaled, bfv_input, fastRangeCheckIndices_63_8points_pre, p, ring_dim, relin_keys, seal_context, bfv_secret_key, 
                                             4257, false, false, 32, 32);
+    e = chrono::high_resolution_clock::now();
+    cout << "scale time: " << chrono::duration_cast<chrono::microseconds>(e - s).count() << endl;
 
-    decryptor.decrypt(scaled, pl);
-    batch_encoder.decode(pl, input_v);
-    cout << "Result after scale: ---------------------\n" << input_v << endl;
+    // decryptor.decrypt(scaled, pl);
+    // batch_encoder.decode(pl, input_v);
+    // cout << "Result after scale: ---------------------\n" << input_v << endl;
 
 
 
@@ -166,9 +172,7 @@ int main() {
     cout << "... prepared bfv input ciphertext nearly out of noise budget ...\n";
     Ciphertext bfv_input_copy(scaled);
 
-    chrono::high_resolution_clock::time_point time_start, time_end, s, e;
-
-    time_start = chrono::high_resolution_clock::now();
+    
     s = chrono::high_resolution_clock::now();
     Evaluator eval_coeff(seal_context_last);
     eval_coeff.rotate_columns_inplace(scaled, gal_keys_coeff);

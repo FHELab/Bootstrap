@@ -25,7 +25,7 @@ int main() {
     EncryptionParameters bfv_params(scheme_type::bfv);
     bfv_params.set_poly_modulus_degree(ring_dim);
 
-    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 30, 60, 60,
+    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 60, 60,
                                                           60, 60, 60,
                                                           50, 60 });
     bfv_params.set_coeff_modulus(coeff_modulus);
@@ -102,8 +102,9 @@ int main() {
 
     Ciphertext bfv_input;
     vector<uint64_t> input_v(poly_modulus_degree_glb);
+    vector<uint64_t> xo = {57004, 46969, 21931, 39030, 59092, 9965, 30013, 58301};
     for (int i = 0; i < (int) poly_modulus_degree_glb; i++) {
-        input_v[i] = i % 2 == 0 ? 100 : 32668;
+        input_v[i] = xo[i%8];
     }
     Plaintext pl;
     batch_encoder.encode(input_v, pl);
@@ -141,7 +142,7 @@ int main() {
         evaluator.transform_to_ntt_inplace(sk_sqrt_list[i]);
     }
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 6; i++) {
         evaluator.mod_switch_to_next_inplace(bfv_input);
     }
     cout << "... prepared bfv input ciphertext nearly out of noise budget ...\n";
