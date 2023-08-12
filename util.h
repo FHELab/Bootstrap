@@ -415,7 +415,7 @@ Ciphertext slotToCoeff(const SEALContext& context, const SEALContext& context_co
  * @return Ciphertext 
  */
 Ciphertext slotToCoeff_WOPrepreocess(const SEALContext& context, const SEALContext& context_coeff, vector<Ciphertext>& ct_sqrt_list, const GaloisKeys& gal_keys,
-                                     const int sq_rt = 128, const int degree=poly_modulus_degree_glb, const int q = prime_p) {
+                                     const int sq_rt = 128, const int degree=poly_modulus_degree_glb, const int q = prime_p, const scalar = 1) {
     Evaluator evaluator(context), eval_coeff(context_coeff);
     BatchEncoder batch_encoder(context);
 
