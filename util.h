@@ -415,7 +415,7 @@ Ciphertext slotToCoeff(const SEALContext& context, const SEALContext& context_co
  * @return Ciphertext 
  */
 Ciphertext slotToCoeff_WOPrepreocess(const SEALContext& context, const SEALContext& context_coeff, vector<Ciphertext>& ct_sqrt_list, const GaloisKeys& gal_keys,
-                                     const int sq_rt = 128, const int degree=poly_modulus_degree_glb, const int q = prime_p, const scalar = 1) {
+                                     const int sq_rt = 128, const int degree=poly_modulus_degree_glb, const int q = prime_p, const int scalar = 1) {
     Evaluator evaluator(context), eval_coeff(context_coeff);
     BatchEncoder batch_encoder(context);
 
@@ -442,7 +442,7 @@ Ciphertext slotToCoeff_WOPrepreocess(const SEALContext& context, const SEALConte
                 } else {
                     col_index = i < degree/2 ? col_index + degree/2 : col_index;
                 }
-                U_tmp[i] = U[row_index][col_index];
+                U_tmp[i] = (U[row_index][col_index] * scalar) % q;
             }
             writeUtemp(U_tmp, j*sq_rt + iter);
 

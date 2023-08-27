@@ -11,23 +11,53 @@ using namespace std;
 
 
 int main() {
+    int func_type = 4;
 
     ////////////////////////////////////////////// PREPARE (R)LWE PARAMS ///////////////////////////////////////////////
     int ring_dim = poly_modulus_degree_glb;
-    int n = 1024;
-    map<int, bool> modDownIndices_1 = {{4, false}, {16, false}};
-    map<int, bool> modDownIndices_2 = {{4, false}, {16, false}, {32, false}};
-    BootstrapParam bootstrap_param = BootstrapParam(65537, 128, 512, 32, 32);
-    int p = bootstrap_param.ciphertextSpacePrime;
-    int f_zero = 25877;
-    vector<uint64_t> rangeCheckIndices = fastRangeCheckIndices_63_8points;
-
     EncryptionParameters bfv_params(scheme_type::bfv);
     bfv_params.set_poly_modulus_degree(ring_dim);
+    int n = 1024;
 
-    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 60, 60,
-                                                          60, 60, 60,
-                                                          50, 60 });
+    map<int, bool> modDownIndices_1, modDownIndices_2;
+    BootstrapParam bootstrap_param;
+    int f_zero = 0;
+    vector<uint64_t> rangeCheckIndices;
+    auto coeff_modulus;
+
+    if (func_type == 3) {
+        modDownIndices_1 = {{4, false}, {16, false}};
+        modDownIndices_2 = {{4, false}, {16, false}, {32, false}};
+        bootstrap_param = BootstrapParam(65537, 128, 512, 32, 32);
+        f_zero = 25877;
+        rangeCheckIndices = fastRangeCheckIndices_63_8points;
+        coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 60, 60,
+                                                         60, 60, 60,
+                                                         50, 60 });
+    } else if (func_type == 4) {
+        modDownIndices_1 = {{4, false}, {16, false}};
+        modDownIndices_2 = {{4, false}, {16, false}, {32, false}};
+        bootstrap_param = BootstrapParam(65537, 128, 512, 32, 32);
+        f_zero = 25877;
+        rangeCheckIndices = fastRangeCheckIndices_63_8points;
+        coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 60, 60,
+                                                         60, 60, 60,
+                                                         50, 60 });
+    } else { // func_type == 5
+        modDownIndices_1 = {{4, false}, {16, false}};
+        modDownIndices_2 = {{4, false}, {16, false}, {32, false}};
+        bootstrap_param = BootstrapParam(65537, 128, 512, 32, 32);
+        f_zero = 25877;
+        rangeCheckIndices = fastRangeCheckIndices_63_8points;
+        coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 60, 60,
+                                                         60, 60, 60,
+                                                         50, 60 });
+    }
+
+
+
+    int p = bootstrap_param.ciphertextSpacePrime;    
+    
     bfv_params.set_coeff_modulus(coeff_modulus);
     bfv_params.set_plain_modulus(p);
 

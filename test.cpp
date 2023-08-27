@@ -94,10 +94,11 @@ int main() {
 
 
     // vector<uint64_t> msg = {0, 21845, 32768, 43490, 10922, 30000, 50000, 20000};
+    vector<uint64_t> xo = {57004, 46969, 21931, 39030, 59092, 9965, 30013, 58301};
     vector<uint64_t> msg(ring_dim);
     for (int i = 0; i < ring_dim; i++) {
         // msg[i] = (i % 8) * 8111;
-        msg[i] = 57004;
+        msg[i] = xo[i%8];
     } //= {0, 21845, 32768, 43490, 10922, 30000, 50000, 20000};
     Plaintext pl;
     Ciphertext c1;
@@ -118,8 +119,12 @@ int main() {
 
 
     Ciphertext scaled;
-    Bootstrap_RangeCheck_PatersonStockmeyer(scaled, c1, fastRangeCheckIndices_63_8points_pre, p, ring_dim, relin_keys, seal_context, bfv_secret_key, 
-                                            4257, false, false, 32, 32);
+    map<int, bool> modDownIndices_1 = {{4, false}, {16, false}};
+    map<int, bool> modDownIndices_2 = {{4, false}, {16, false}, {32, false}};
+    Bootstrap_FastRangeCheck_Random(bfv_secret_key, scaled, c1, ring_dim, relin_keys, seal_context, fastRangeCheckIndices_63_8points_pre,
+                                    32, 32, modDownIndices_1, modDownIndices_2, 4257);
+    // Bootstrap_RangeCheck_PatersonStockmeyer(scaled, c1, fastRangeCheckIndices_63_8points_pre, p, ring_dim, relin_keys, seal_context, bfv_secret_key, 
+    //                                         4257, false, false, 32, 32);
 
 
     decryptor.decrypt(scaled, pl);

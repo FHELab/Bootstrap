@@ -19,6 +19,10 @@ int main() {
     BootstrapParam bootstrap_param = BootstrapParam(65537, 128, 512, 256, 256);
     int p = bootstrap_param.ciphertextSpacePrime;
     int interval = 2;
+    vector<uint64_t> rangeCheckIndices = rangeCheckIndices_bfv_square;
+    int scalar = bootstrap_param.errorRange/interval;
+    
+
 
     EncryptionParameters bfv_params(scheme_type::bfv);
     bfv_params.set_poly_modulus_degree(ring_dim);
@@ -159,23 +163,22 @@ int main() {
         evaluator.mod_switch_to_next_inplace(bfv_input);
     }
 
-    chrono::high_resolution_clock::time_point time_start, time_end, s, e;
-
-    time_start = chrono::high_resolution_clock::now();
-
-    s = chrono::high_resolution_clock::now();
-    if (interval < 128) { // interval for input space less than error bound, will lose precision if directly extracted, first scale to enlarge the distance
-        pl.resize(ring_dim);
-        pl.parms_id() = parms_id_zero;
-        for (int i = 0; i < (int) ring_dim; i++) {
-            pl.data()[i] = 0;
+    vector<Plaintext> U_plain_list(ring_dim);
+    for (int iter = 0; iter < sq_ct; iter++) {
+        for (int j = 0; j < (int) ct_sqrt_list.size(); j++) {
+            vector<uint64_t> U_tmp = readUtemp(j*sq_ct + iter);
+            if (scalar != 1) {
+                for (int k = 0; k < U_tmp.size(); k++) {
+                    U_tmp[k] = (U_tmp[k] * scalar) % p;
+                }
+            }
+            batch_encoder.encode(U_tmp, U_plain_list[iter * ct_sqrt_list.size() + j]);
+            evaluator.transform_to_ntt_inplace(U_plain_list[iter * ct_sqrt_list.size() + j], ct_sqrt_list[j].parms_id());
         }
-        pl.data()[0] = 128/interval;
-
-        evaluator.multiply_plain_inplace(bfv_input, pl);
     }
-    e = chrono::high_resolution_clock::now();
-    cout << "scale preprocess input: " << chrono::duration_cast<chrono::microseconds>(e - s).count() << endl;
+
+    chrono::high_resolution_clock::time_point time_start, time_end, s, e;
+    time_start = chrono::high_resolution_clock::now();
 
     s = chrono::high_resolution_clock::now();
     Ciphertext bfv_input_copy(bfv_input);
@@ -191,22 +194,12 @@ int main() {
     e = chrono::high_resolution_clock::now();
     cout << "prepare rotated ntt input: " << chrono::duration_cast<chrono::microseconds>(e - s).count() << endl;
 
-    // vector<Plaintext> U_plain_list(ring_dim);
-    // for (int iter = 0; iter < sq_ct; iter++) {
-    //     for (int j = 0; j < (int) ct_sqrt_list.size(); j++) {
-    //         vector<uint64_t> U_tmp = readUtemp(j*sq_ct + iter);
-    //         batch_encoder.encode(U_tmp, U_plain_list[iter * ct_sqrt_list.size() + j]);
-    //         evaluator.transform_to_ntt_inplace(U_plain_list[iter * ct_sqrt_list.size() + j], ct_sqrt_list[j].parms_id());
-    //     }
-    // }
 
-
-
-    // Ciphertext coeff = slotToCoeff(seal_context, seal_context_last, ct_sqrt_list, U_plain_list, gal_keys_coeff, ring_dim);
     s = chrono::high_resolution_clock::now();
-    Ciphertext coeff = slotToCoeff_WOPrepreocess(seal_context, seal_context_last, ct_sqrt_list, gal_keys_coeff, 128, ring_dim, p);
+    Ciphertext coeff = slotToCoeff(seal_context, seal_context_last, ct_sqrt_list, U_plain_list, gal_keys_coeff, ring_dim);
+    // Ciphertext coeff = slotToCoeff_WOPrepreocess(seal_context, seal_context_last, ct_sqrt_list, gal_keys_coeff, 128, ring_dim, p, scalar);
     e = chrono::high_resolution_clock::now();
-    cout << "slotToCoeff_WOPrepreocess: " << chrono::duration_cast<chrono::microseconds>(e - s).count() << endl;
+    cout << "slotToCoeff: " << chrono::duration_cast<chrono::microseconds>(e - s).count() << endl;
 
 
 
@@ -245,7 +238,7 @@ int main() {
     Ciphertext range_check_res;
     s = chrono::high_resolution_clock::now();
     /* for bootstrap function evaluation, use rangeCheckIndices_bfv for identity mapping, and rangeCheckIndices_bfv_square for square mapping */
-    Bootstrap_RangeCheck_PatersonStockmeyer(range_check_res, eval_result, rangeCheckIndices_bfv_square, p, ring_dim,
+    Bootstrap_RangeCheck_PatersonStockmeyer(range_check_res, eval_result, rangeCheckIndices, p, ring_dim,
                                             relin_keys, seal_context, bfv_secret_key, 0, false, false,
                                             bootstrap_param.firstLevelDegree, bootstrap_param.secondLevelDegree);
 
