@@ -78,7 +78,7 @@ int main() {
     keygen.create_galois_keys(rot_steps, gal_keys);
     
     vector<Modulus> coeff_modulus_last = coeff_modulus;
-    coeff_modulus_last.erase(coeff_modulus_last.begin() + 2, coeff_modulus_last.end()-1);
+    coeff_modulus_last.erase(coeff_modulus_last.begin() + 1, coeff_modulus_last.end()-1);
     EncryptionParameters parms_last = bfv_params;
     parms_last.set_coeff_modulus(coeff_modulus_last);
     SEALContext seal_context_last = SEALContext(parms_last, true, sec_level_type::none);
@@ -159,7 +159,7 @@ int main() {
         evaluator.transform_to_ntt_inplace(sk_sqrt_list[i]);
     }
 
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < 9; i++) {
         evaluator.mod_switch_to_next_inplace(bfv_input);
     }
 
