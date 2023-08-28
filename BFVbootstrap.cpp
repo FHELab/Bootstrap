@@ -168,7 +168,7 @@ int main() {
         for (int j = 0; j < (int) ct_sqrt_list.size(); j++) {
             vector<uint64_t> U_tmp = readUtemp(j*sq_ct + iter);
             if (scalar != 1) {
-                for (int k = 0; k < U_tmp.size(); k++) {
+                for (int k = 0; k < (int) U_tmp.size(); k++) {
                     U_tmp[k] = (U_tmp[k] * scalar) % p;
                 }
             }

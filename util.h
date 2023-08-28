@@ -490,14 +490,16 @@ void Bootstrap_FastRangeCheck_Random(const SecretKey& bfv_secret_key, Ciphertext
     vector<Ciphertext> kCTs(firstLevel), kToMCTs(secondLevel);
 
     calUptoDegreeK_bigPrime(kCTs, input, firstLevel, relin_keys, context, firstLevelMod);
+    cout << "   Noise after first level: " << decryptor.invariant_noise_budget(kCTs[kCTs.size()-1]) << " bits\n";
     calUptoDegreeK_bigPrime(kToMCTs, kCTs[kCTs.size()-1], secondLevel, relin_keys, context, secondLevelMod);
+    cout << "   Noise after second level: " << decryptor.invariant_noise_budget(kToMCTs[kToMCTs.size()-1]) << " bits\n";
 
-    for (int j = 0; j < (int) kCTs.size(); j++) {
-        evaluator.mod_switch_to_inplace(kCTs[j], kToMCTs[kToMCTs.size()-1].parms_id());
-    }
-    for (int j = 0; j < (int) kToMCTs.size(); j++) {
-        evaluator.mod_switch_to_next_inplace(kToMCTs[j]);
-    }
+    // for (int j = 0; j < (int) kCTs.size(); j++) {
+    //     evaluator.mod_switch_to_inplace(kCTs[j], kToMCTs[kToMCTs.size()-1].parms_id());
+    // }
+    // for (int j = 0; j < (int) kToMCTs.size(); j++) {
+    //     evaluator.mod_switch_to_next_inplace(kToMCTs[j]);
+    // }
 
     Ciphertext temp_relin(context);
 
@@ -1167,7 +1169,7 @@ vector<regevCiphertext> bootstrap(vector<regevCiphertext>& lwe_ct_list, Cipherte
     time_end = chrono::high_resolution_clock::now();
     total_online += chrono::duration_cast<chrono::microseconds>(time_end - time_start).count();
     cout << "TOTAL TIME for evaluation: " << total_online << endl;
-    // cout << "Noise: " << decryptor.invariant_noise_budget(result) << " bits\n";
+    cout << "Noise: " << decryptor.invariant_noise_budget(result) << " bits\n";
 
     Plaintext pl;
     vector<uint64_t> v(ring_dim);
@@ -1178,9 +1180,10 @@ vector<regevCiphertext> bootstrap(vector<regevCiphertext>& lwe_ct_list, Cipherte
     Ciphertext range_check_res;
     time_start = chrono::high_resolution_clock::now();
     if (gateEval) {
-        map<int, bool> modDownIndices = {{4, false}, {16, false}};
+        map<int, bool> modDownIndices1 = {{4, false}};
+        map<int, bool> modDownIndices2 = {{4, false}, {16, false}};
         Bootstrap_FastRangeCheck_Random(bfv_secret_key, range_check_res, result, ring_dim, relin_keys, seal_context, rangeCheckIndices,
-                                        firstDegree, secondDegree, modDownIndices, modDownIndices, f_zero);
+                                        firstDegree, secondDegree, modDownIndices1, modDownIndices2, f_zero);
     } else {
         Bootstrap_RangeCheck_PatersonStockmeyer(range_check_res, result, rangeCheckIndices, p, ring_dim,
                                                 relin_keys, seal_context, bfv_secret_key, f_zero, gateEval, skip_first_odd,
@@ -1189,6 +1192,7 @@ vector<regevCiphertext> bootstrap(vector<regevCiphertext>& lwe_ct_list, Cipherte
     time_end = chrono::high_resolution_clock::now();
     total_online += chrono::duration_cast<chrono::microseconds>(time_end - time_start).count();
     cout << "TOTAL TIME for rangecheck: " << total_online << endl;
+    cout << "Noise after rangecheck: " << decryptor.invariant_noise_budget(range_check_res) << " bits\n";
 
     // decryptor.decrypt(range_check_res, pl);
     // batch_encoder.decode(pl, v);
@@ -1197,15 +1201,10 @@ vector<regevCiphertext> bootstrap(vector<regevCiphertext>& lwe_ct_list, Cipherte
     ////////////////////////////////////////// SLOT TO COEFFICIENT /////////////////////////////////////////////////////
 
     time_start = chrono::high_resolution_clock::now();
-    evaluator.mod_switch_to_next_inplace(range_check_res);
-    time_end = chrono::high_resolution_clock::now();
-    total_online += chrono::duration_cast<chrono::microseconds>(time_end - time_start).count();
-    // cout << "Noise after range check: " << decryptor.invariant_noise_budget(range_check_res) << " bits\n";
-
-    time_start = chrono::high_resolution_clock::now();
     while(seal_context.last_parms_id() != range_check_res.parms_id()){
         evaluator.mod_switch_to_next_inplace(range_check_res);
     }
+    cout << "Noise after range check mod switch to very last???: " << decryptor.invariant_noise_budget(range_check_res) << " bits\n";
 
     Ciphertext range_check_res_copy(range_check_res);
 
@@ -1246,7 +1245,7 @@ vector<regevCiphertext> bootstrap(vector<regevCiphertext>& lwe_ct_list, Cipherte
     ////////////////////////////////////////////////// KEY SWITCHING ///////////////////////////////////////////////////
 
     time_start = chrono::high_resolution_clock::now();
-    // cout << "Noise before key switch: " << decryptor.invariant_noise_budget(coeff) << " bits\n";
+    cout << "Noise before key switch: " << decryptor.invariant_noise_budget(coeff) << " bits\n";
 
     Ciphertext copy_coeff = coeff;
     auto ct_in_iter = util::iter(copy_coeff);
@@ -1255,7 +1254,7 @@ vector<regevCiphertext> bootstrap(vector<regevCiphertext>& lwe_ct_list, Cipherte
 
     evaluator.switch_key_inplace(coeff, *ct_in_iter, static_cast<const KSwitchKeys &>(ksk), 0, my_pool);
 
-    // cout << "Noise before extraction: " << decryptor.invariant_noise_budget(coeff) << " bits\n";
+    cout << "Noise before extraction: " << decryptor.invariant_noise_budget(coeff) << " bits\n";
     
     vector<regevCiphertext> lwe_ct_results = extractRLWECiphertextToLWECiphertext(coeff);
     time_end = chrono::high_resolution_clock::now();
