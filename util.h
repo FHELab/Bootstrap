@@ -1201,9 +1201,7 @@ vector<regevCiphertext> bootstrap(vector<regevCiphertext>& lwe_ct_list, Cipherte
     ////////////////////////////////////////// SLOT TO COEFFICIENT /////////////////////////////////////////////////////
 
     time_start = chrono::high_resolution_clock::now();
-    while(seal_context.last_parms_id() != range_check_res.parms_id()){
-        evaluator.mod_switch_to_next_inplace(range_check_res);
-    }
+    evaluator.mod_switch_to_next_inplace(range_check_res);
     cout << "Noise after range check mod switch to very last???: " << decryptor.invariant_noise_budget(range_check_res) << " bits\n";
 
     Ciphertext range_check_res_copy(range_check_res);
@@ -1245,6 +1243,10 @@ vector<regevCiphertext> bootstrap(vector<regevCiphertext>& lwe_ct_list, Cipherte
     ////////////////////////////////////////////////// KEY SWITCHING ///////////////////////////////////////////////////
 
     time_start = chrono::high_resolution_clock::now();
+
+    while(seal_context.last_parms_id() != coeff.parms_id()) {
+        evaluator.mod_switch_to_next_inplace(coeff);
+    }
     cout << "Noise before key switch: " << decryptor.invariant_noise_budget(coeff) << " bits\n";
 
     Ciphertext copy_coeff = coeff;
