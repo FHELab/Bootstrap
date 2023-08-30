@@ -11,7 +11,7 @@ using namespace std;
 
 
 int main() {
-    int func_type = 4;
+    int func_type = 3;
 
     ////////////////////////////////////////////// PREPARE (R)LWE PARAMS ///////////////////////////////////////////////
     int ring_dim = poly_modulus_degree_glb;
@@ -26,6 +26,7 @@ int main() {
     auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 60, 60,
                                                          60, 60, 60,
                                                          50, 60 });
+    vector<uint64_t> input_v(poly_modulus_degree_glb);
 
     if (func_type == 3) {
         modDownIndices_1 = {{4, false}, {16, false}};
@@ -36,6 +37,11 @@ int main() {
         coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 60, 60,
                                                          60, 60, 60,
                                                          50, 60 });
+
+        for (int i = 0; i < (int) poly_modulus_degree_glb; i++) {
+            input_v[i] = i % 2 ? 31 : 32759;
+        }
+        
     } else if (func_type == 4) {
         modDownIndices_1 = {{4, false}, {16, false}};
         modDownIndices_2 = {{4, false}, {16, false}, {32, false}};
@@ -45,6 +51,10 @@ int main() {
         coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 60, 60,
                                                          60, 60, 60,
                                                          50, 60 });
+        vector<uint64_t> xo = {57004, 46969, 21931, 39030, 59092, 9965, 30013, 58301};
+        for (int i = 0; i < (int) poly_modulus_degree_glb; i++) {
+            input_v[i] = xo[i%8];
+        }
     } else { // func_type == 5
         modDownIndices_1 = {{4, false}, {16, false}};
         modDownIndices_2 = {{4, false}, {16, false}, {32, false}};
@@ -54,6 +64,10 @@ int main() {
         coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 60, 60,
                                                          60, 60, 60,
                                                          50, 60 });
+
+        for (int i = 0; i < (int) poly_modulus_degree_glb; i++) {
+            input_v[i] = i % 2 ? 120 : 32700;
+        }
     }
 
 
@@ -133,11 +147,6 @@ int main() {
     ////////////////////////////////////////////// PREPARE BFV CIPHERTEXT //////////////////////////////////////////////
 
     Ciphertext bfv_input;
-    vector<uint64_t> input_v(poly_modulus_degree_glb);
-    vector<uint64_t> xo = {57004, 46969, 21931, 39030, 59092, 9965, 30013, 58301};
-    for (int i = 0; i < (int) poly_modulus_degree_glb; i++) {
-        input_v[i] = xo[i%8];
-    }
     Plaintext pl;
     batch_encoder.encode(input_v, pl);
     encryptor.encrypt(pl, bfv_input);
