@@ -24,8 +24,8 @@ int main() {
     int f_zero = 0;
     vector<uint64_t> rangeCheckIndices;
     auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 60, 60,
-                                                         60, 60, 60,
-                                                         50, 60 });
+                                                          60, 60, 60,
+                                                          50, 60 });
     vector<uint64_t> input_v(poly_modulus_degree_glb);
 
     if (func_type == 3) {

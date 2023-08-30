@@ -17,6 +17,7 @@ int main() {
     int ring_dim = poly_modulus_degree_glb;
     int n = 1024;
     int p = 65537;
+    int sq_ct = 64, sq_rt = 128; // 16384/2 = 64*128
 
     EncryptionParameters bfv_params(scheme_type::bfv);
     bfv_params.set_poly_modulus_degree(ring_dim);
@@ -90,7 +91,7 @@ int main() {
         if (find(rot_steps_coeff.begin(), rot_steps_coeff.end(), i) == rot_steps_coeff.end()) {
             rot_steps_coeff.push_back(i);
         }
-        i += sqrt(ring_dim/2);
+        i += sq_rt;
     }
     KeyGenerator keygen_last(seal_context_last, sk_last);
     keygen_last.create_galois_keys(rot_steps_coeff, gal_keys_coeff);
@@ -161,7 +162,7 @@ int main() {
     }
     vector<regevCiphertext> lwe_ct_results = bootstrap(lwe_ct_list, lwe_sk_encrypted, seal_context, seal_context_last, relin_keys, gal_keys, gal_keys_coeff,
                                                        ring_dim, n, p, ksk, fastRangeCheckIndices_gateEvaluation, my_pool, bfv_secret_key, q_shift_constant,
-                                                       f_zero, gateEval, skipOdd, 12, 32);
+                                                       f_zero, gateEval, skipOdd, 12, 32, sq_ct, sq_rt);
     regevDec_Mod3_Mixed(msg, lwe_ct_results, lwe_sk, lwe_params);
 
 
