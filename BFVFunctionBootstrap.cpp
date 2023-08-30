@@ -20,17 +20,19 @@ int main() {
     int n = 1024;
 
     map<int, bool> modDownIndices_1, modDownIndices_2;
-    BootstrapParam bootstrap_param;
+    BootstrapParam bootstrap_param = BootstrapParam(65537, 128, 512, 32, 32);
     int f_zero = 0;
     vector<uint64_t> rangeCheckIndices;
-    auto coeff_modulus;
+    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 60, 60,
+                                                         60, 60, 60,
+                                                         50, 60 });
 
     if (func_type == 3) {
         modDownIndices_1 = {{4, false}, {16, false}};
-        modDownIndices_2 = {{4, false}, {16, false}, {32, false}};
-        bootstrap_param = BootstrapParam(65537, 128, 512, 32, 32);
-        f_zero = 25877;
-        rangeCheckIndices = fastRangeCheckIndices_63_8points;
+        modDownIndices_2 = {{4, false}, {16, false}};
+        bootstrap_param = BootstrapParam(65537, 128, 512, 16, 16);
+        f_zero = 0;
+        rangeCheckIndices = fastRangeCheckIndices_63_twoShot;
         coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 60, 60,
                                                          60, 60, 60,
                                                          50, 60 });
@@ -46,9 +48,9 @@ int main() {
     } else { // func_type == 5
         modDownIndices_1 = {{4, false}, {16, false}};
         modDownIndices_2 = {{4, false}, {16, false}, {32, false}};
-        bootstrap_param = BootstrapParam(65537, 128, 512, 32, 32);
-        f_zero = 25877;
-        rangeCheckIndices = fastRangeCheckIndices_63_8points;
+        bootstrap_param = BootstrapParam(65537, 128, 512, 16, 32);
+        f_zero = 32768;
+        rangeCheckIndices = fastRangeCheckIndices_127_twoRange;
         coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 60, 60,
                                                          60, 60, 60,
                                                          50, 60 });
