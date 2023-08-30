@@ -10,6 +10,7 @@ using namespace seal;
 using namespace std;
 
 
+// use ring_dim = 16384 and primitive root = 9, change in the global.h file
 int main() {
 
 

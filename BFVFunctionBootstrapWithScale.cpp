@@ -149,14 +149,17 @@ int main() {
     time_start = chrono::high_resolution_clock::now();
     s = chrono::high_resolution_clock::now();
     Ciphertext scaled;
-    Bootstrap_RangeCheck_PatersonStockmeyer(scaled, bfv_input, fastRangeCheckIndices_63_8points_pre, p, ring_dim, relin_keys, seal_context, bfv_secret_key, 
-                                            4257, false, false, 32, 32);
+    // Bootstrap_RangeCheck_PatersonStockmeyer(scaled, bfv_input, fastRangeCheckIndices_63_8points_pre, p, ring_dim, relin_keys, seal_context, bfv_secret_key, 
+    //                                         4257, false, false, 32, 32);
+
+    Bootstrap_FastRangeCheck_Random(bfv_secret_key, scaled, bfv_input, ring_dim, relin_keys, seal_context, fastRangeCheckIndices_63_8points_pre,
+                                    32, 32, modDownIndices_1, modDownIndices_2, 4257);
     e = chrono::high_resolution_clock::now();
     cout << "scale time: " << chrono::duration_cast<chrono::microseconds>(e - s).count() << endl;
 
-    // decryptor.decrypt(scaled, pl);
-    // batch_encoder.decode(pl, input_v);
-    // cout << "Result after scale: ---------------------\n" << input_v << endl;
+    decryptor.decrypt(scaled, pl);
+    batch_encoder.decode(pl, input_v);
+    cout << "Result after scale re-map: ---------------------\n" << input_v << endl;
 
 
 
