@@ -11,15 +11,18 @@ x = symbols('x')
 # xs = []
 # ys = []
 
-# xo = [57004, 46969, 21931, 39030, 59092, 9965, 30013, 58301]
+xs = [57004, 46969, 21931, 39030, 59092, 9965, 30013, 58301]
+ys = [0, 8192, 16384, 24576 ,32768, 40960, 49152 ,57344]
 # yo = [51237, 63408, 61771, 29236, 28266, 35197, 57032, 60306]
 # xo = [57004]
 # yo = [51237]
 
-for i in range(len(xo)):
-   for x_val in range(xo[i]-63, xo[i]+64):
-      xs.append(x_val)
-      ys.append(yo[i])
+# for i in range(len(xo)):
+#   #  for x_val in range(xo[i]-63, xo[i]+64):
+#       xs.append(xo[i])
+#       ys.append(yo[i])
+
+print(xs, ys)
 
 # for i in range(-63, 64):
 #    xs.append(i)

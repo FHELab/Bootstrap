@@ -25,7 +25,7 @@ int main() {
     EncryptionParameters bfv_params(scheme_type::bfv);
     bfv_params.set_poly_modulus_degree(ring_dim);
 
-    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 30, 60, 60,
+    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 60, 60,
                                                           60, 60, 60,
                                                           50, 60 });
     bfv_params.set_coeff_modulus(coeff_modulus);
@@ -149,11 +149,13 @@ int main() {
     time_start = chrono::high_resolution_clock::now();
     s = chrono::high_resolution_clock::now();
     Ciphertext scaled;
-    // Bootstrap_RangeCheck_PatersonStockmeyer(scaled, bfv_input, fastRangeCheckIndices_63_8points_pre, p, ring_dim, relin_keys, seal_context, bfv_secret_key, 
-    //                                         4257, false, false, 32, 32);
+
+    for (int i = 0; i < 4; i++) {
+        evaluator.mod_switch_to_next_inplace(bfv_input);
+    }
 
     Bootstrap_FastRangeCheck_Random(bfv_secret_key, scaled, bfv_input, ring_dim, relin_keys, seal_context, fastRangeCheckIndices_63_8points_pre,
-                                    32, 32, modDownIndices_1, modDownIndices_2, 4257);
+                                    2, 4, modDownIndices_1, modDownIndices_1, 8811);
     e = chrono::high_resolution_clock::now();
     cout << "scale time: " << chrono::duration_cast<chrono::microseconds>(e - s).count() << endl;
 
