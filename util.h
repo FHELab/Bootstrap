@@ -820,7 +820,9 @@ void Bootstrap_RangeCheck_PatersonStockmeyer(Ciphertext& ciphertext, const Ciphe
     vector<Ciphertext> kCTs(firstDegree), kToMCTs(secondDegree);
 
     calUptoDegreeK(kCTs, input, firstDegree, relin_keys, context, skip_first_odd);
+    cout << decryptor.invariant_noise_budget(kCTs[0]) << endl;
     calUptoDegreeK(kToMCTs, kCTs[kCTs.size()-1], secondDegree, relin_keys, context);
+    cout << decryptor.invariant_noise_budget(kToMCTs[0]) << endl;
 
     for (int j = 0; j < (int) kCTs.size(); j++) {
         evaluator.mod_switch_to_inplace(kCTs[j], kToMCTs[kToMCTs.size()-1].parms_id());
@@ -881,7 +883,7 @@ void Bootstrap_RangeCheck_PatersonStockmeyer(Ciphertext& ciphertext, const Ciphe
     evaluator.negate_inplace(ciphertext);
     evaluator.add_plain_inplace(ciphertext, plainInd);
 
-    cout << "Noise after function: " << decryptor.invariant_noise_budget(ciphertext) << " bits\n";
+    cout << "Noise after function: " << decryptor.invariant_noise_budget(ciphertext) << " bits\n" << ciphertext.coeff_modulus_size() << endl;
 
     if (gateEval) { // flip 0 to q/3, q/3 to 0
         plainInd.data()[0] = modulus/3;
@@ -1202,7 +1204,7 @@ vector<regevCiphertext> bootstrap(vector<regevCiphertext>& lwe_ct_list, Cipherte
     ////////////////////////////////////////// SLOT TO COEFFICIENT /////////////////////////////////////////////////////
 
     time_start = chrono::high_resolution_clock::now();
-    evaluator.mod_switch_to_next_inplace(range_check_res);
+    // evaluator.mod_switch_to_next_inplace(range_check_res);
     cout << "Noise after range check mod switch to very last???: " << decryptor.invariant_noise_budget(range_check_res) << " bits\n";
 
     Ciphertext range_check_res_copy(range_check_res);
