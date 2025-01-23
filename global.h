@@ -12,7 +12,9 @@ int primitive_root = 3;
 // plaintext_to_ciphertext_prime_map:
 // equal and below 2^9 -> 65537, 2^12 -> (20bit prime) 786433 = 512*512*3+1, 2^15 -> (23bit prime) 5308417 = (2^8*9)^2+1
 int prime_p = 65537;
+uint64_t big_prime_global = 1152921504606584833;
 
+vector<vector<float>> diff_global;
 
 // constant: 8811
 // xo = [57004, 46969, 21931, 39030, 59092, 9965, 30013, 58301]

@@ -11,7 +11,7 @@ using namespace std;
 
 
 int main() {
-    int func_type = 3;
+    int func_type = 4;
 
     ////////////////////////////////////////////// PREPARE (R)LWE PARAMS ///////////////////////////////////////////////
     int ring_dim = poly_modulus_degree_glb;
@@ -23,9 +23,9 @@ int main() {
     BootstrapParam bootstrap_param = BootstrapParam(65537, 128, 512, 32, 32);
     int f_zero = 0;
     vector<uint64_t> rangeCheckIndices;
-    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 60, 60,
+    auto coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 60, 60, 60,60,
                                                           60, 60, 60,
-                                                          50, 60 });
+                                                          60, 60 });
     vector<uint64_t> input_v(poly_modulus_degree_glb);
 
     if (func_type == 3) {
@@ -48,8 +48,8 @@ int main() {
         bootstrap_param = BootstrapParam(65537, 128, 512, 32, 32);
         f_zero = 25877;
         rangeCheckIndices = fastRangeCheckIndices_63_8points;
-        coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 60, 60,
-                                                         60, 60, 60,
+        coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 60, 60, 60,
+                                                         60, 60, 60, 60, 
                                                          50, 60 });
         vector<uint64_t> xo = {57004, 46969, 21931, 39030, 59092, 9965, 30013, 58301};
         for (int i = 0; i < (int) poly_modulus_degree_glb; i++) {
@@ -61,7 +61,7 @@ int main() {
         bootstrap_param = BootstrapParam(65537, 128, 512, 16, 32);
         f_zero = 32768;
         rangeCheckIndices = fastRangeCheckIndices_127_twoRange;
-        coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 60, 60,
+        coeff_modulus = CoeffModulus::Create(ring_dim, { 60, 60, 60, 60, 60,
                                                          60, 60, 60,
                                                          50, 60 });
 
@@ -183,7 +183,7 @@ int main() {
         evaluator.transform_to_ntt_inplace(sk_sqrt_list[i]);
     }
 
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 8; i++) {
         evaluator.mod_switch_to_next_inplace(bfv_input);
     }
     cout << "... prepared bfv input ciphertext nearly out of noise budget ...\n";
@@ -282,9 +282,9 @@ int main() {
 
 
 
-    decryptor.decrypt(range_check_res, pl);
-    batch_encoder.decode(pl, input_v);
-    cout << "Result !!!!! ---------------------\n" << input_v << endl;
+    // decryptor.decrypt(range_check_res, pl);
+    // batch_encoder.decode(pl, input_v);
+    // cout << "Result !!!!! ---------------------\n" << input_v << endl;
 
     cout << "TOTAL TIME: " << chrono::duration_cast<chrono::microseconds>(time_end - time_start).count() << endl;
 

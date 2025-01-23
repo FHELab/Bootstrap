@@ -32,8 +32,6 @@ include_directories( ${PALISADE_INCLUDE}/core )
 include_directories( ${PALISADE_INCLUDE}/pke )
 include_directories( include/palisade/core )
 include_directories( include/palisade )
-include_directories( /Users/yunhaowang/sw/include/NTL )
-include_directories( /Users/yunhaowang/sw/include )
 
 link_directories( ${PALISADE_LIBDIR} )
 link_directories( ${OPENMP_LIBRARIES} )
@@ -45,6 +43,6 @@ else()
     link_libraries( ${PALISADE_SHARED_LIBRARIES} )
 endif()
 
-add_executable( bootstrap FunctionEvaluation.cpp )
+add_executable( bootstrap indD-test.cpp )
 
 target_link_libraries(bootstrap SEAL::seal ntl m gmp)

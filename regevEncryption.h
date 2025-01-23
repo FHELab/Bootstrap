@@ -181,9 +181,10 @@ void regevDec(vector<int>& msg, const vector<regevCiphertext>& ct, const regevSK
     for (int j = 0; j < (int) ct.size(); j++) {
         int r = ct[j].b.ConvertToInt();
         for (int i = 0; i < n; ++i) {
-            r = (r - ct[j].a[i].ConvertToInt() * sk[i].ConvertToInt()) % q;
+            r = (r + ct[j].a[i].ConvertToInt() * sk[i].ConvertToInt()) % q;
         }
-        msg[j] = (r >= 0 && r < 65537/4) || (r < 65537 && r > 65537-65537/4) ? 0 : 1;
+        // msg[j] = (r >= 0 && r < 65537/4) || (r < 65537 && r > 65537-65537/4) ? 0 : 1;
+	    msg[j] = r;
     }
 }
 

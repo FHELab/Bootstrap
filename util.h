@@ -820,9 +820,9 @@ void Bootstrap_RangeCheck_PatersonStockmeyer(Ciphertext& ciphertext, const Ciphe
     vector<Ciphertext> kCTs(firstDegree), kToMCTs(secondDegree);
 
     calUptoDegreeK(kCTs, input, firstDegree, relin_keys, context, skip_first_odd);
-    cout << decryptor.invariant_noise_budget(kCTs[0]) << endl;
+    // cout << decryptor.invariant_noise_budget(kCTs[0]) << endl;
     calUptoDegreeK(kToMCTs, kCTs[kCTs.size()-1], secondDegree, relin_keys, context);
-    cout << decryptor.invariant_noise_budget(kToMCTs[0]) << endl;
+    // cout << decryptor.invariant_noise_budget(kToMCTs[0]) << endl;
 
     for (int j = 0; j < (int) kCTs.size(); j++) {
         evaluator.mod_switch_to_inplace(kCTs[j], kToMCTs[kToMCTs.size()-1].parms_id());
@@ -883,7 +883,7 @@ void Bootstrap_RangeCheck_PatersonStockmeyer(Ciphertext& ciphertext, const Ciphe
     evaluator.negate_inplace(ciphertext);
     evaluator.add_plain_inplace(ciphertext, plainInd);
 
-    cout << "Noise after function: " << decryptor.invariant_noise_budget(ciphertext) << " bits\n" << ciphertext.coeff_modulus_size() << endl;
+    // cout << "Noise after function: " << decryptor.invariant_noise_budget(ciphertext) << " bits\n" << ciphertext.coeff_modulus_size() << endl;
 
     if (gateEval) { // flip 0 to q/3, q/3 to 0
         plainInd.data()[0] = modulus/3;
@@ -925,7 +925,7 @@ Ciphertext encryptLWEskUnderBFV(const SEALContext& context, const size_t& degree
 
 
 vector<regevCiphertext> extractRLWECiphertextToLWECiphertext(Ciphertext& rlwe_ct, const int ring_dim = poly_modulus_degree_glb,
-                                                             const int n = 1024, const int p = prime_p, const uint64_t big_prime = 1152921504589938689) {
+                                                             const int n = 1024, const int p = prime_p, const uint64_t big_prime = big_prime_global) {
     vector<regevCiphertext> results(ring_dim);
 
     prng_seed_type seed;
@@ -937,33 +937,57 @@ vector<regevCiphertext> extractRLWECiphertextToLWECiphertext(Ciphertext& rlwe_ct
     uniform_int_distribution<uint32_t> dist(0, 100);
 
     for (int cnt = 0; cnt < ring_dim; cnt++) {
+        diff_global[cnt].resize(n);
+        std::fill(diff_global[cnt].begin(), diff_global[cnt].end(), 0);
         results[cnt].a = NativeVector(n);
         int ind = 0;
         for (int i = cnt; i >= 0 && ind < n; i--) {
-            float temp_f = ((float) rlwe_ct.data(1)[i]) * ((float) p) / ((long double) big_prime);
-            uint32_t decimal = (temp_f - ((int) temp_f)) * 100;
-            float rounding = dist(engine) < decimal ? 1 : 0;
+            double temp_f = ((double) rlwe_ct.data(1)[i]) * ((double) p) / ((long double) big_prime);
+            // double decimal = (temp_f - ((int) temp_f)) * 100;
+            // double rounding = dist(engine) < decimal ? 1 : 0;
+            double decimal = (temp_f - ((int) temp_f));
+	        double rounding = decimal < 0.5 ? 0 : 1;
 
-            long temp = ((int) (temp_f + rounding)) % p;
+            long temp = ((int) (temp_f + rounding));
             results[cnt].a[ind] = temp < 0 ? p + temp : temp;
+
+            // decimal = (temp_f - ((int) temp_f));
+	        // rounding = decimal < 0.5 ? 0 : 1;
+            // temp = ((int) (temp_f + rounding));
+
+            diff_global[cnt][ind] = temp_f-temp;
+            if (diff_global[cnt][ind] > 0.5 || diff_global[cnt][ind] < -0.5) cout << " ---- " << big_prime << " " << rlwe_ct.data(1)[i] << " " << temp_f << " " << temp << " " << diff_global[cnt][ind] << endl;
 
             ind++;
         }
 
         for (int i = ring_dim-1; i > ring_dim - n + cnt && ind < n; i--) {
-            float temp_f = ((float) rlwe_ct.data(1)[i]) * ((float) p) / ((long double) big_prime);
-            uint32_t decimal = (temp_f - ((int) temp_f)) * 100;
-            float rounding = dist(engine) < decimal ? 1 : 0;
+            double temp_f = ((double) rlwe_ct.data(1)[i]) * ((double) p) / ((long double) big_prime);
+            // double decimal = (temp_f - ((int) temp_f)) * 100;
+            // double rounding = dist(engine) < decimal ? 1 : 0;
+            double decimal = (temp_f - ((int) temp_f));
+	        double rounding = decimal < 0.5 ? 0 : 1;
 
-            long temp = ((int) (temp_f + rounding)) % p;
+            long temp = ((int) (temp_f + rounding));
             results[cnt].a[ind] = -temp < 0 ? p-temp : -temp;
+
+            // decimal = (temp_f - ((int) temp_f));
+	        // rounding = decimal < 0.5 ? 0 : 1;
+            // temp = ((int) (temp_f + rounding));
+
+            diff_global[cnt][ind] = temp-temp_f;
+            if (diff_global[cnt][ind] > 0.5 || diff_global[cnt][ind] < -0.5) cout << " ---- " << big_prime << " " << rlwe_ct.data(1)[i] << " " << temp_f << " " << temp << " " << diff_global[cnt][ind] << endl;
 
             ind++;
         }
 
-        float temp_f = ((float) rlwe_ct.data(0)[cnt]) * ((float) p) / ((long double) big_prime);
-        uint32_t decimal = temp_f - ((int) temp_f) * 100;
-        float rounding = dist(engine) < decimal ? 1 : 0;
+        double temp_f = ((double) rlwe_ct.data(0)[cnt]) * ((double) p) / ((long double) big_prime);
+        // double decimal = temp_f - ((int) temp_f)*100;
+        // double rounding = dist(engine) < decimal ? 1 : 0;
+        double decimal = (temp_f - ((int) temp_f));
+        double rounding = decimal < 0.5 ? 0 : 1;
+        
+	    
 
         long temp = ((int) (temp_f + rounding)) % p;
         results[cnt].b = temp % ((int) p);
